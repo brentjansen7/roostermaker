@@ -15,7 +15,15 @@ if (!env.DATABASE_URL) {
   console.error('DATABASE_URL ontbreekt — voeg PostgreSQL toe in Railway.');
   process.exit(1);
 }
-console.log('Database:', env.DATABASE_URL.split('@')[1] || 'lokaal');
+const dbUrl = env.DATABASE_URL;
+const isPostgres = dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://');
+console.log('DATABASE_URL begint met:', dbUrl.slice(0, 20) + '...');
+if (!isPostgres) {
+  console.error('DATABASE_URL is geen PostgreSQL URL! Verwijder handmatig DATABASE_URL in Railway variabelen en herverbind de PostgreSQL plugin.');
+  console.error('Huidige waarde begint met:', dbUrl.slice(0, 30));
+  process.exit(1);
+}
+console.log('Database:', dbUrl.split('@')[1] || 'lokaal');
 
 const opts = { cwd: __dirname, env, stdio: 'inherit' };
 
