@@ -25,10 +25,9 @@ if (!isPostgres(dbUrl)) {
     console.log('DATABASE_URL samengesteld vanuit PG* variabelen:', PGHOST);
   } else {
     console.error('WAARSCHUWING: geen geldige DATABASE_URL of PG* variabelen gevonden.');
-    console.error('Beschikbare env keys (DB-gerelateerd):',
-      Object.keys(env).filter(k => k.includes('PG') || k.includes('DB') || k.includes('DATABASE') || k.includes('POSTGRES')).join(', ') || '(geen)'
-    );
-    // Geen exit — server start toch, health check slaagt, setup-status toont de fout
+    console.error('Env keys (DB):', Object.keys(env).filter(k =>
+      k.includes('PG') || k.includes('DATABASE') || k.includes('POSTGRES')
+    ).join(', ') || '(geen)');
   }
 } else {
   console.log('Database host:', dbUrl.split('@')[1]?.split('/')[0] || 'lokaal');
@@ -36,26 +35,27 @@ if (!isPostgres(dbUrl)) {
 
 const opts = { cwd: __dirname, env, stdio: 'inherit' };
 
-// Schema synchroniseren (niet fataal)
-if (isPostgres(dbUrl)) {
-  try {
-    console.log('Schema sync starten...');
-    execSync('npx prisma db push --accept-data-loss', opts);
-    console.log('Schema sync klaar.');
-  } catch (err) {
-    console.error('Schema sync mislukt:', err.message?.slice(0, 500));
-  }
-
-  // Seed data (niet fataal)
-  try {
-    execSync('node src/seed.js', opts);
-  } catch (err) {
-    console.error('Seed mislukt (niet fataal):', err.message?.slice(0, 200));
-  }
-}
-
-// Start server altijd — health check moet slagen
+// Start server DIRECT — health check mag niet wachten op schema sync
 const server = spawn('node', ['src/index.js'], { ...opts, stdio: 'inherit' });
 process.on('SIGTERM', () => server.kill('SIGTERM'));
 process.on('SIGINT',  () => server.kill('SIGINT'));
 server.on('exit', code => process.exit(code ?? 0));
+
+// Schema sync + seed ASYNCHROON na serverstart (niet blokkerend)
+if (isPostgres(dbUrl)) {
+  setTimeout(() => {
+    try {
+      console.log('Schema sync starten (achtergrond)...');
+      execSync('npx prisma db push --accept-data-loss', { ...opts, timeout: 120000 });
+      console.log('Schema sync klaar.');
+    } catch (err) {
+      console.error('Schema sync mislukt:', err.message?.slice(0, 300));
+    }
+    try {
+      execSync('node src/seed.js', opts);
+      console.log('Seed klaar.');
+    } catch (err) {
+      console.error('Seed mislukt:', err.message?.slice(0, 200));
+    }
+  }, 2000); // 2 sec wachten zodat server zeker luistert voor health check
+}
