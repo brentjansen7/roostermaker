@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 
-process.env.DATABASE_URL = process.env.DATABASE_URL || 'file:/tmp/dev.db';
+if (!process.env.DATABASE_URL) process.exit(0); // geen DB = geen seed nodig
 const prisma = new PrismaClient();
 
 async function seed() {

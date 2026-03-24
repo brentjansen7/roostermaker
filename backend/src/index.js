@@ -22,9 +22,12 @@ import schoolroostersRoutes from './routes/schoolroosters.js';
 import importRoutes from './routes/import.js';
 import exportRoutes from './routes/export.js';
 
-// Standaard env vars (voor Railway zonder .env bestand)
-process.env.DATABASE_URL   = process.env.DATABASE_URL   || 'file:/tmp/dev.db';
+// Standaard env vars
 process.env.SESSION_SECRET = process.env.SESSION_SECRET || 'roosterplanner-geheim-2026';
+if (!process.env.DATABASE_URL) {
+  console.error('DATABASE_URL is niet ingesteld! Voeg een PostgreSQL toe in Railway.');
+  process.exit(1);
+}
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -186,6 +189,14 @@ if (existsSync(publicDir)) {
   });
 }
 
-app.listen(PORT, () => {
-  console.log(`Roosterplanner backend draait op poort ${PORT}`);
+// Auto-migreer nieuwe kolommen bij opstarten (werkt ook in dev-modus)
+async function autoMigreer() {
+  try { await prisma.$executeRawUnsafe(`ALTER TABLE "vakken" ADD COLUMN "prioriteit" INTEGER NOT NULL DEFAULT 2`); } catch {}
+  try { await prisma.$executeRawUnsafe(`ALTER TABLE "klassen" ADD COLUMN "maxEindtijd" TEXT`); } catch {}
+}
+
+autoMigreer().then(() => {
+  app.listen(PORT, () => {
+    console.log(`Roosterplanner backend draait op poort ${PORT}`);
+  });
 });

@@ -6,13 +6,16 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const env = {
   ...process.env,
-  DATABASE_URL:   process.env.DATABASE_URL   || 'file:/tmp/dev.db',
   SESSION_SECRET: process.env.SESSION_SECRET || 'roosterplanner-geheim-2026',
   PORT:           process.env.PORT           || '3001',
   FRONTEND_URL:   process.env.FRONTEND_URL   || 'http://localhost:5173',
 };
 
-console.log('DATABASE_URL:', env.DATABASE_URL);
+if (!env.DATABASE_URL) {
+  console.error('DATABASE_URL ontbreekt — voeg PostgreSQL toe in Railway.');
+  process.exit(1);
+}
+console.log('Database:', env.DATABASE_URL.split('@')[1] || 'lokaal');
 
 const opts = { cwd: __dirname, env, stdio: 'inherit' };
 

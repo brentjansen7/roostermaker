@@ -11,7 +11,7 @@ router.get('/', async (req, res) => {
     const where = {};
     if (klas) where.klas = klas;
     if (niveau) where.niveau = niveau;
-    if (zoek) where.naam = { contains: zoek };
+    if (zoek) where.naam = { contains: zoek, mode: 'insensitive' };
 
     const leerlingen = await prisma.leerling.findMany({
       where,
