@@ -5,3 +5,4 @@ buildCommand = "npm run build"
 [deploy]
 startCommand = "npm start"
 healthcheckPath = "/api/setup-status"
+healthcheckTimeout = 120
