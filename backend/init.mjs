@@ -11,19 +11,27 @@ const env = {
   FRONTEND_URL:   process.env.FRONTEND_URL   || 'http://localhost:5173',
 };
 
-if (!env.DATABASE_URL) {
-  console.error('DATABASE_URL ontbreekt — voeg PostgreSQL toe in Railway.');
-  process.exit(1);
+// Als DATABASE_URL ontbreekt of geen PostgreSQL URL is, probeer PG* vars samen te stellen
+let dbUrl = env.DATABASE_URL || '';
+const isPostgres = (u) => u.startsWith('postgresql://') || u.startsWith('postgres://');
+
+if (!isPostgres(dbUrl)) {
+  const { PGHOST, PGPORT, PGDATABASE, PGUSER, PGPASSWORD } = env;
+  if (PGHOST && PGUSER && PGDATABASE) {
+    const port = PGPORT || '5432';
+    const pw   = PGPASSWORD ? encodeURIComponent(PGPASSWORD) : '';
+    dbUrl = `postgresql://${PGUSER}:${pw}@${PGHOST}:${port}/${PGDATABASE}`;
+    env.DATABASE_URL = dbUrl;
+    console.log('DATABASE_URL samengesteld vanuit PG* variabelen:', PGHOST);
+  } else if (!dbUrl) {
+    console.error('DATABASE_URL ontbreekt — voeg PostgreSQL toe in Railway.');
+    process.exit(1);
+  } else {
+    console.error('DATABASE_URL is geen PostgreSQL URL (begint met:', dbUrl.slice(0, 30) + ')');
+    process.exit(1);
+  }
 }
-const dbUrl = env.DATABASE_URL;
-const isPostgres = dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://');
-console.log('DATABASE_URL begint met:', dbUrl.slice(0, 20) + '...');
-if (!isPostgres) {
-  console.error('DATABASE_URL is geen PostgreSQL URL! Verwijder handmatig DATABASE_URL in Railway variabelen en herverbind de PostgreSQL plugin.');
-  console.error('Huidige waarde begint met:', dbUrl.slice(0, 30));
-  process.exit(1);
-}
-console.log('Database:', dbUrl.split('@')[1] || 'lokaal');
+console.log('Database host:', dbUrl.split('@')[1]?.split('/')[0] || 'lokaal');
 
 const opts = { cwd: __dirname, env, stdio: 'inherit' };
 
