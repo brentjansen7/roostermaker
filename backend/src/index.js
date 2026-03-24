@@ -136,9 +136,9 @@ app.get('/api/setup-status', async (req, res) => {
   try {
     const schoolnaam = await prisma.instelling.findUnique({ where: { sleutel: 'schoolnaam' } });
     res.json({ klaar: !!(schoolnaam && schoolnaam.waarde) });
-  } catch {
+  } catch (err) {
     // DB nog niet klaar (bijv. schema sync loopt nog) — geef toch 200 terug
-    res.json({ klaar: false, dbNietKlaar: true });
+    res.json({ klaar: false, dbNietKlaar: true, foutmelding: err.message?.slice(0, 200) });
   }
 });
 
