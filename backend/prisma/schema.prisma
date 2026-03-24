@@ -1,0 +1,308 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── KERN ENTITEITEN ─────────────────────────────────────────────────────────
+
+model Leerling {
+  id              Int      @id @default(autoincrement())
+  magisterNummer  String   @unique
+  naam            String
+  klas            String
+  leerjaar        Int
+  niveau          String   // "mavo", "havo", "vwo"
+  email           String?
+  aangemaaktOp    DateTime @default(now())
+
+  vakken          LeerlingVak[]
+  seInschrijvingen SEInschrijving[]
+  toetsDeelnames  ToetsDeelname[]
+  leerlingSlots   LeerlingSlot[]
+
+  @@map("leerlingen")
+}
+
+model Docent {
+  id           Int      @id @default(autoincrement())
+  magisterCode String   @unique
+  naam         String
+  afkorting    String
+  email        String?
+  aangemaaktOp DateTime @default(now())
+
+  vakken       DocentVak[]
+  roosterSlots RoosterSlot[]
+  seLessen     SELes[]
+  toetsLessen  ToetsLes[]
+
+  @@map("docenten")
+}
+
+model Vak {
+  id       Int     @id @default(autoincrement())
+  code     String  @unique
+  naam     String
+  isSeVak  Boolean @default(true)
+
+  docenten        DocentVak[]
+  leerlingen      LeerlingVak[]
+  seLessen        SELes[]
+  seInschrijvingen SEInschrijving[]
+  toetsLessen     ToetsLes[]
+  toetsDeelnames  ToetsDeelname[]
+  lessen          Les[]
+
+  @@map("vakken")
+}
+
+model DocentVak {
+  docentId Int
+  vakId    Int
+  docent   Docent @relation(fields: [docentId], references: [id], onDelete: Cascade)
+  vak      Vak    @relation(fields: [vakId], references: [id], onDelete: Cascade)
+
+  @@id([docentId, vakId])
+  @@map("docent_vakken")
+}
+
+model LeerlingVak {
+  leerlingId Int
+  vakId      Int
+  leerling   Leerling @relation(fields: [leerlingId], references: [id], onDelete: Cascade)
+  vak        Vak      @relation(fields: [vakId], references: [id], onDelete: Cascade)
+
+  @@id([leerlingId, vakId])
+  @@map("leerling_vakken")
+}
+
+model Lokaal {
+  id          Int     @id @default(autoincrement())
+  code        String  @unique
+  naam        String?
+  capaciteit  Int     @default(30)
+  type        String  @default("normaal") // "normaal","gym","lab","aula","ict"
+  beschikbaar Boolean @default(true)
+
+  roosterSlots RoosterSlot[]
+  seLessen     SELes[]
+  toetsLessen  ToetsLes[]
+
+  @@map("lokalen")
+}
+
+// ─── SE HERKANSINGEN ─────────────────────────────────────────────────────────
+
+model SERooster {
+  id           Int      @id @default(autoincrement())
+  naam         String
+  schooljaar   String
+  status       String   @default("concept") // "concept","gepubliceerd"
+  aangemaaktOp DateTime @default(now())
+  bijgewerktOp DateTime @updatedAt
+
+  lessen         SELes[]
+  inschrijvingen SEInschrijving[]
+
+  @@map("se_roosters")
+}
+
+model SELes {
+  id         Int       @id @default(autoincrement())
+  roosterId  Int
+  rooster    SERooster @relation(fields: [roosterId], references: [id], onDelete: Cascade)
+  vakId      Int
+  vak        Vak       @relation(fields: [vakId], references: [id])
+  docentId   Int?
+  docent     Docent?   @relation(fields: [docentId], references: [id])
+  lokaalId   Int?
+  lokaal     Lokaal?   @relation(fields: [lokaalId], references: [id])
+  dag        Int?      // 1=ma t/m 5=vr
+  uur        Int?      // 1-8
+  datum      String?   // "2026-01-15" (optioneel)
+  maxAantal  Int       @default(30)
+  handmatigGezet Boolean @default(false)
+
+  inschrijvingen SEInschrijving[]
+
+  @@map("se_lessen")
+}
+
+model SEInschrijving {
+  id         Int       @id @default(autoincrement())
+  roosterId  Int
+  rooster    SERooster @relation(fields: [roosterId], references: [id], onDelete: Cascade)
+  leerlingId Int
+  leerling   Leerling  @relation(fields: [leerlingId], references: [id])
+  vakId      Int
+  vak        Vak       @relation(fields: [vakId], references: [id])
+  lesId      Int?
+  les        SELes?    @relation(fields: [lesId], references: [id])
+  status     String    @default("ingeschreven") // "ingeschreven","ingepland","conflict"
+
+  @@unique([roosterId, leerlingId, vakId])
+  @@map("se_inschrijvingen")
+}
+
+// ─── TOETSWEKEN ──────────────────────────────────────────────────────────────
+
+model Toetsweek {
+  id           Int      @id @default(autoincrement())
+  naam         String
+  schooljaar   String
+  datumVan     String?  // "2026-03-23"
+  datumTot     String?
+  status       String   @default("concept")
+  aangemaaktOp DateTime @default(now())
+  bijgewerktOp DateTime @updatedAt
+
+  lessen    ToetsLes[]
+  deelnames ToetsDeelname[]
+
+  @@map("toetsweken")
+}
+
+model ToetsLes {
+  id            Int       @id @default(autoincrement())
+  toetsweekId   Int
+  toetsweek     Toetsweek @relation(fields: [toetsweekId], references: [id], onDelete: Cascade)
+  vakId         Int
+  vak           Vak       @relation(fields: [vakId], references: [id])
+  docentId      Int?
+  docent        Docent?   @relation(fields: [docentId], references: [id])
+  lokaalId      Int?
+  lokaal        Lokaal?   @relation(fields: [lokaalId], references: [id])
+  dag           Int?      // 1-5
+  uur           Int?      // 1-8
+  handmatigGezet Boolean  @default(false)
+
+  deelnames ToetsDeelname[]
+
+  @@map("toets_lessen")
+}
+
+model ToetsDeelname {
+  id           Int       @id @default(autoincrement())
+  toetsweekId  Int
+  toetsweek    Toetsweek @relation(fields: [toetsweekId], references: [id], onDelete: Cascade)
+  leerlingId   Int
+  leerling     Leerling  @relation(fields: [leerlingId], references: [id])
+  vakId        Int
+  vak          Vak       @relation(fields: [vakId], references: [id])
+  toetsLesId   Int?
+  toetsLes     ToetsLes? @relation(fields: [toetsLesId], references: [id])
+  status       String    @default("ingepland") // "ingepland","conflict"
+
+  @@unique([toetsweekId, leerlingId, vakId])
+  @@map("toets_deelnames")
+}
+
+// ─── VOLLEDIG SCHOOLROOSTER ───────────────────────────────────────────────────
+
+model Schoolrooster {
+  id           Int      @id @default(autoincrement())
+  naam         String
+  schooljaar   String
+  status       String   @default("concept")
+  aangemaaktOp DateTime @default(now())
+  bijgewerktOp DateTime @updatedAt
+
+  klassen Klas[]
+  slots   RoosterSlot[]
+
+  @@map("schoolroosters")
+}
+
+model Klas {
+  id               Int           @id @default(autoincrement())
+  roosterId        Int
+  rooster          Schoolrooster @relation(fields: [roosterId], references: [id], onDelete: Cascade)
+  naam             String        // "4MA1"
+  leerjaar         Int
+  niveau           String
+  aantalLeerlingen Int           @default(0)
+
+  lessen Les[]
+
+  @@map("klassen")
+}
+
+model Les {
+  id               Int    @id @default(autoincrement())
+  klasId           Int
+  klas             Klas   @relation(fields: [klasId], references: [id], onDelete: Cascade)
+  vakId            Int
+  vak              Vak    @relation(fields: [vakId], references: [id])
+  aantalUurPerWeek Int    @default(1)
+
+  slots RoosterSlot[]
+
+  @@map("lessen")
+}
+
+model RoosterSlot {
+  id             Int           @id @default(autoincrement())
+  roosterId      Int
+  rooster        Schoolrooster @relation(fields: [roosterId], references: [id], onDelete: Cascade)
+  lesId          Int?
+  les            Les?          @relation(fields: [lesId], references: [id])
+  docentId       Int?
+  docent         Docent?       @relation(fields: [docentId], references: [id])
+  lokaalId       Int?
+  lokaal         Lokaal?       @relation(fields: [lokaalId], references: [id])
+  dag            Int           // 1-5
+  uur            Int           // 1-8
+  handmatigGezet Boolean       @default(false)
+
+  leerlingen LeerlingSlot[]
+  conflicten Conflict[]
+
+  @@map("rooster_slots")
+}
+
+model LeerlingSlot {
+  leerlingId Int
+  slotId     Int
+  leerling   Leerling    @relation(fields: [leerlingId], references: [id], onDelete: Cascade)
+  slot       RoosterSlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
+
+  @@id([leerlingId, slotId])
+  @@map("leerling_slots")
+}
+
+model Conflict {
+  id           Int         @id @default(autoincrement())
+  slotId       Int
+  slot         RoosterSlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  type         String      // "docent_dubbel","lokaal_dubbel","lokaal_vol","klas_dubbel"
+  beschrijving String
+  opgelost     Boolean     @default(false)
+
+  @@map("conflicten")
+}
+
+// ─── INSTELLINGEN & IMPORT LOG ────────────────────────────────────────────────
+
+model Instelling {
+  sleutel String @id
+  waarde  String
+
+  @@map("instellingen")
+}
+
+model ImportLog {
+  id           Int      @id @default(autoincrement())
+  bestandsnaam String
+  type         String   // "leerlingen","docenten","vakken"
+  aantalRijen  Int
+  succes       Int
+  fouten       Int
+  foutDetails  String?
+  aangemaaktOp DateTime @default(now())
+
+  @@map("import_logs")
+}
