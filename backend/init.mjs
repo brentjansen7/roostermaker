@@ -11,7 +11,7 @@ const env = {
   FRONTEND_URL:   process.env.FRONTEND_URL   || 'http://localhost:5173',
 };
 
-// Als DATABASE_URL ontbreekt of geen PostgreSQL URL is, probeer PG* vars samen te stellen
+// DATABASE_URL diagnostiek — nooit process.exit zodat de server altijd start
 let dbUrl = env.DATABASE_URL || '';
 const isPostgres = (u) => u.startsWith('postgresql://') || u.startsWith('postgres://');
 
@@ -23,35 +23,38 @@ if (!isPostgres(dbUrl)) {
     dbUrl = `postgresql://${PGUSER}:${pw}@${PGHOST}:${port}/${PGDATABASE}`;
     env.DATABASE_URL = dbUrl;
     console.log('DATABASE_URL samengesteld vanuit PG* variabelen:', PGHOST);
-  } else if (!dbUrl) {
-    console.error('DATABASE_URL ontbreekt — voeg PostgreSQL toe in Railway.');
-    process.exit(1);
   } else {
-    console.error('DATABASE_URL is geen PostgreSQL URL (begint met:', dbUrl.slice(0, 30) + ')');
-    process.exit(1);
+    console.error('WAARSCHUWING: geen geldige DATABASE_URL of PG* variabelen gevonden.');
+    console.error('Beschikbare env keys (DB-gerelateerd):',
+      Object.keys(env).filter(k => k.includes('PG') || k.includes('DB') || k.includes('DATABASE') || k.includes('POSTGRES')).join(', ') || '(geen)'
+    );
+    // Geen exit — server start toch, health check slaagt, setup-status toont de fout
   }
+} else {
+  console.log('Database host:', dbUrl.split('@')[1]?.split('/')[0] || 'lokaal');
 }
-console.log('Database host:', dbUrl.split('@')[1]?.split('/')[0] || 'lokaal');
 
 const opts = { cwd: __dirname, env, stdio: 'inherit' };
 
-// Schema synchroniseren (aanmaken/bijwerken tabellen)
-try {
-  console.log('Schema sync starten...');
-  execSync('npx prisma db push --accept-data-loss', opts);
-  console.log('Schema sync klaar.');
-} catch (err) {
-  console.error('Schema sync mislukt:', err.message?.slice(0, 500));
+// Schema synchroniseren (niet fataal)
+if (isPostgres(dbUrl)) {
+  try {
+    console.log('Schema sync starten...');
+    execSync('npx prisma db push --accept-data-loss', opts);
+    console.log('Schema sync klaar.');
+  } catch (err) {
+    console.error('Schema sync mislukt:', err.message?.slice(0, 500));
+  }
+
+  // Seed data (niet fataal)
+  try {
+    execSync('node src/seed.js', opts);
+  } catch (err) {
+    console.error('Seed mislukt (niet fataal):', err.message?.slice(0, 200));
+  }
 }
 
-// Seed data (niet fataal)
-try {
-  execSync('node src/seed.js', opts);
-} catch (err) {
-  console.error('Seed mislukt (niet fataal):', err.message?.slice(0, 200));
-}
-
-// Start server en forward signalen zodat Railway de app netjes kan stoppen
+// Start server altijd — health check moet slagen
 const server = spawn('node', ['src/index.js'], { ...opts, stdio: 'inherit' });
 process.on('SIGTERM', () => server.kill('SIGTERM'));
 process.on('SIGINT',  () => server.kill('SIGINT'));
