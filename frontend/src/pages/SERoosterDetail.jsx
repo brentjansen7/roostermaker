@@ -53,6 +53,7 @@ export default function SERoosterDetail() {
       vakCode: l.vak?.code,
       docentAfkorting: l.docent?.afkorting,
       lokaalCode: l.lokaal?.code,
+      klasNaam: l.inschrijvingen?.length ? `${l.inschrijvingen.length} lrl` : '—',
     }));
 
   // Groepeer inschrijvingen per vak

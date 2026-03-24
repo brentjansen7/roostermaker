@@ -21,6 +21,11 @@ const UREN = [1, 2, 3, 4, 5, 6, 7, 8];
 
 // SlotKaart: één les/toets in het rooster
 function SlotKaart({ slot, heeftConflict, isDragging }) {
+  const vak     = slot.vakCode     || slot.vak?.code        || '?';
+  const docent  = slot.docentAfkorting || slot.docent?.afkorting || '—';
+  const klas    = slot.klasNaam    || slot.klas?.naam        || '—';
+  const lokaal  = slot.lokaalCode  || slot.lokaal?.code      || '—';
+
   return (
     <div className={`
       p-1.5 rounded text-xs cursor-grab active:cursor-grabbing select-none
@@ -29,11 +34,12 @@ function SlotKaart({ slot, heeftConflict, isDragging }) {
         : 'bg-blue-50 border border-blue-200 text-blue-900'}
       ${isDragging ? 'opacity-50' : ''}
     `}>
-      <p className="font-semibold truncate">{slot.vakCode || slot.vak?.code || '?'}</p>
-      <p className="text-slate-500 truncate">{slot.docentAfkorting || slot.docent?.afkorting || ''}</p>
-      <p className="text-slate-400 truncate">{slot.lokaalCode || slot.lokaal?.code || ''}</p>
+      <p className="font-semibold truncate mb-1">{vak}</p>
+      <p className="truncate text-slate-500"><span className="text-slate-400">Doc </span>{docent}</p>
+      <p className="truncate text-slate-500"><span className="text-slate-400">Klas</span> {klas}</p>
+      <p className="truncate text-slate-500"><span className="text-slate-400">Lok </span>{lokaal}</p>
       {heeftConflict && (
-        <p className="text-red-600 font-medium text-xs mt-0.5">⚠ conflict</p>
+        <p className="text-red-600 font-medium mt-0.5">⚠ conflict</p>
       )}
     </div>
   );
