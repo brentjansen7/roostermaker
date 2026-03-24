@@ -19,9 +19,13 @@ import schoolroostersRoutes from './routes/schoolroosters.js';
 import importRoutes from './routes/import.js';
 import exportRoutes from './routes/export.js';
 
+// Standaard env vars (voor Railway zonder .env bestand)
+process.env.DATABASE_URL   = process.env.DATABASE_URL   || 'file:/tmp/dev.db';
+process.env.SESSION_SECRET = process.env.SESSION_SECRET || 'roosterplanner-geheim-2026';
+
 const app = express();
 const PORT = process.env.PORT || 3001;
-const SESSION_SECRET = process.env.SESSION_SECRET || 'roosterplanner-geheim';
+const SESSION_SECRET = process.env.SESSION_SECRET;
 const isProduction = process.env.NODE_ENV === 'production';
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 
@@ -44,9 +48,9 @@ app.use(
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: isProduction,
+      secure: false,
       httpOnly: true,
-      sameSite: isProduction ? 'none' : 'lax',
+      sameSite: 'lax',
       maxAge: 24 * 60 * 60 * 1000,
     },
   })
