@@ -19,6 +19,12 @@ console.log('Database:', env.DATABASE_URL.split('@')[1] || 'lokaal');
 
 const opts = { cwd: __dirname, env, stdio: 'inherit' };
 
+// Schema synchroniseren (aanmaken/bijwerken tabellen)
+try {
+  execSync('npx prisma db push --accept-data-loss', opts);
+} catch (err) {
+  console.error('Schema sync mislukt (niet fataal):', err.message);
+}
 execSync('node src/seed.js', opts);
 
 // Start server en forward signalen zodat Railway de app netjes kan stoppen

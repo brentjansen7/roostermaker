@@ -7,14 +7,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const frontendDir = join(__dirname, '../frontend');
 const publicDir = join(__dirname, 'public');
 
-// Prisma genereren + schema pushen tijdens build (niet tijdens startup)
-if (process.env.DATABASE_URL) {
-  console.log('Prisma: schema naar database pushen...');
-  execSync('npx prisma db push --accept-data-loss', { cwd: __dirname, stdio: 'inherit' });
-} else {
-  console.log('Prisma: DATABASE_URL niet aanwezig, schema push overgeslagen.');
-  execSync('npx prisma generate', { cwd: __dirname, stdio: 'inherit' });
-}
+// Prisma client genereren (geen DB-verbinding nodig)
+console.log('Prisma: client genereren...');
+execSync('npx prisma generate', { cwd: __dirname, stdio: 'inherit' });
 
 console.log('Frontend installeren...');
 execSync('npm install', { cwd: frontendDir, stdio: 'inherit' });

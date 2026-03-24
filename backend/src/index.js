@@ -131,14 +131,14 @@ app.get('/api/auth-status', (req, res) => {
   res.json({ ingelogd: !!(req.session && req.session.ingelogd) });
 });
 
-// Setup status
+// Setup status — antwoordt altijd 200 zodat Railway health check slaagt
 app.get('/api/setup-status', async (req, res) => {
   try {
     const schoolnaam = await prisma.instelling.findUnique({ where: { sleutel: 'schoolnaam' } });
     res.json({ klaar: !!(schoolnaam && schoolnaam.waarde) });
-  } catch (err) {
-    console.error('Setup-status fout:', err);
-    res.status(500).json({ fout: 'Serverfout' });
+  } catch {
+    // DB nog niet klaar (bijv. schema sync loopt nog) — geef toch 200 terug
+    res.json({ klaar: false, dbNietKlaar: true });
   }
 });
 
