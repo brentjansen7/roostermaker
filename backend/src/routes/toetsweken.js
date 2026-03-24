@@ -93,18 +93,11 @@ router.post('/:id/deelnames/genereer', async (req, res) => {
       include: { vakken: true },
     });
 
-    let aangemaakt = 0;
-    for (const leerling of leerlingen) {
-      for (const lv of leerling.vakken) {
-        await prisma.toetsDeelname.upsert({
-          where: { toetsweekId_leerlingId_vakId: { toetsweekId, leerlingId: leerling.id, vakId: lv.vakId } },
-          update: {},
-          create: { toetsweekId, leerlingId: leerling.id, vakId: lv.vakId },
-        });
-        aangemaakt++;
-      }
-    }
-    res.json({ aangemaakt });
+    const data = leerlingen.flatMap(leerling =>
+      leerling.vakken.map(lv => ({ toetsweekId, leerlingId: leerling.id, vakId: lv.vakId }))
+    );
+    const result = await prisma.toetsDeelname.createMany({ data, skipDuplicates: true });
+    res.json({ aangemaakt: result.count });
   } catch (err) {
     res.status(500).json({ fout: err.message });
   }
