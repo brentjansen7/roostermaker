@@ -19,7 +19,8 @@ console.log('Database:', env.DATABASE_URL.split('@')[1] || 'lokaal');
 
 const opts = { cwd: __dirname, env, stdio: 'inherit' };
 
-execSync('npx prisma migrate deploy', opts);
+// prisma db push synct het schema direct naar de DB (werkt met zowel PostgreSQL als SQLite)
+execSync('npx prisma db push --accept-data-loss', opts);
 execSync('node src/seed.js', opts);
 
 // Start server en forward signalen zodat Railway de app netjes kan stoppen

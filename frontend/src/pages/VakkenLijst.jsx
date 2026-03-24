@@ -65,13 +65,13 @@ export default function VakkenLijst() {
                     <div className="flex items-center gap-2">
                       <select
                         value={bewerkPrioriteit}
-                        onChange={e => setBewerkPrioriteit(parseInt(e.target.value))}
+                        onChange={e => setBewerkPrioriteit(parseInt(e.target.value, 10))}
                         className="text-xs border border-slate-300 rounded px-2 py-1"
                         autoFocus
                       >
-                        <option value={1}>1 — Hoog (examens)</option>
-                        <option value={2}>2 — Normaal</option>
-                        <option value={3}>3 — Laag</option>
+                      {Object.entries(PRIORITEIT_LABELS).map(([level, label]) => (
+                        <option key={level} value={level}>{level} — {label}</option>
+                      ))}
                       </select>
                       <button onClick={() => slaOpPrioriteit(v)} className="text-xs bg-blue-600 text-white px-2 py-1 rounded">OK</button>
                       <button onClick={() => setBewerkId(null)} className="text-xs text-slate-400 px-1">✕</button>

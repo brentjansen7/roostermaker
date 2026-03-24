@@ -191,12 +191,17 @@ if (existsSync(publicDir)) {
 
 // Auto-migreer nieuwe kolommen bij opstarten (werkt ook in dev-modus)
 async function autoMigreer() {
-  try { await prisma.$executeRawUnsafe(`ALTER TABLE "vakken" ADD COLUMN "prioriteit" INTEGER NOT NULL DEFAULT 2`); } catch {}
-  try { await prisma.$executeRawUnsafe(`ALTER TABLE "klassen" ADD COLUMN "maxEindtijd" TEXT`); } catch {}
+  await prisma.$executeRawUnsafe(`ALTER TABLE "vakken" ADD COLUMN IF NOT EXISTS "prioriteit" INTEGER NOT NULL DEFAULT 2`);
+  await prisma.$executeRawUnsafe(`ALTER TABLE "klassen" ADD COLUMN IF NOT EXISTS "maxEindtijd" TEXT`);
 }
 
-autoMigreer().then(() => {
-  app.listen(PORT, () => {
-    console.log(`Roosterplanner backend draait op poort ${PORT}`);
+autoMigreer()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`Roosterplanner backend draait op poort ${PORT}`);
+    });
+  })
+  .catch(err => {
+    console.error('Opstarten mislukt:', err.message);
+    process.exit(1);
   });
-});

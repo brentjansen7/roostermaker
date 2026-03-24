@@ -97,9 +97,9 @@ router.put('/:id/klassen/:klasId', async (req, res) => {
     const { naam, leerjaar, niveau, aantalLeerlingen, maxEindtijd } = req.body;
     const data = {};
     if (naam !== undefined) data.naam = naam;
-    if (leerjaar !== undefined) data.leerjaar = parseInt(leerjaar);
+    if (leerjaar !== undefined) data.leerjaar = parseInt(leerjaar, 10);
     if (niveau !== undefined) data.niveau = niveau;
-    if (aantalLeerlingen !== undefined) data.aantalLeerlingen = parseInt(aantalLeerlingen);
+    if (aantalLeerlingen !== undefined) data.aantalLeerlingen = parseInt(aantalLeerlingen, 10);
     if (maxEindtijd !== undefined) data.maxEindtijd = maxEindtijd || null;
     const klas = await prisma.klas.update({
       where: { id: parseInt(req.params.klasId) },

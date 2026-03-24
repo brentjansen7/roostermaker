@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { schoolroostersApi } from '../api/client.js';
 import { toonToast } from '../components/Toast.jsx';
@@ -26,11 +26,13 @@ export default function SchoolroosterDetail() {
     try {
       const r = await schoolroostersApi.ophalen(id);
       setRooster(r);
-      // Initialiseer eindtijden vanuit geladen data
-      const tijden = {};
-      for (const k of r.klassen) tijden[k.id] = k.maxEindtijd || '';
-      setKlasEindtijden(tijden);
-      // Laad conflicten
+      // Alleen initialiseren bij eerste load, niet bij herlaad (voorkomt reset van unsaved edits)
+      setKlasEindtijden(prev => {
+        if (Object.keys(prev).length > 0) return prev;
+        const tijden = {};
+        for (const k of r.klassen) tijden[k.id] = k.maxEindtijd || '';
+        return tijden;
+      });
       const c = await schoolroostersApi.conflicten(id).catch(() => []);
       setConflicten(c);
     } catch (err) {
@@ -38,9 +40,9 @@ export default function SchoolroosterDetail() {
     }
   }
 
-  async function slaEindtijdOp(klasId) {
+  async function slaEindtijdOp(klasId, eindtijd) {
     try {
-      await schoolroostersApi.klasBewerken(id, klasId, { maxEindtijd: klasEindtijden[klasId] || null });
+      await schoolroostersApi.klasBewerken(id, klasId, { maxEindtijd: eindtijd || null });
       toonToast('Eindtijd opgeslagen', 'succes');
     } catch (err) {
       toonToast(err.message, 'fout');
@@ -94,12 +96,14 @@ export default function SchoolroosterDetail() {
     klasNaam: s.les?.klas?.naam,
   }));
 
-  // Conflict map: slotId -> conflicten[]
-  const conflictenMap = {};
-  for (const c of conflicten) {
-    if (!conflictenMap[c.slotId]) conflictenMap[c.slotId] = [];
-    conflictenMap[c.slotId].push(c);
-  }
+  const conflictenMap = useMemo(() => {
+    const map = {};
+    for (const c of conflicten) {
+      if (!map[c.slotId]) map[c.slotId] = [];
+      map[c.slotId].push(c);
+    }
+    return map;
+  }, [conflicten]);
 
   return (
     <div className="p-8">
@@ -147,7 +151,7 @@ export default function SchoolroosterDetail() {
                     ))}
                   </select>
                   <button
-                    onClick={() => slaEindtijdOp(klas.id)}
+                    onClick={() => slaEindtijdOp(klas.id, klasEindtijden[klas.id] ?? '')}
                     className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700"
                   >
                     Opslaan

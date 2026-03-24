@@ -35,10 +35,13 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { code, naam, isSeVak, prioriteit } = req.body;
-    const data = { code, naam, isSeVak };
-    if (prioriteit !== undefined) data.prioriteit = parseInt(prioriteit);
+    const data = {};
+    if (code !== undefined) data.code = code;
+    if (naam !== undefined) data.naam = naam;
+    if (isSeVak !== undefined) data.isSeVak = isSeVak;
+    if (prioriteit !== undefined) data.prioriteit = parseInt(prioriteit, 10);
     const vak = await prisma.vak.update({
-      where: { id: parseInt(req.params.id) },
+      where: { id: parseInt(req.params.id, 10) },
       data,
     });
     res.json(vak);
@@ -49,7 +52,7 @@ router.put('/:id', async (req, res) => {
 
 router.delete('/:id', async (req, res) => {
   try {
-    await prisma.vak.delete({ where: { id: parseInt(req.params.id) } });
+    await prisma.vak.delete({ where: { id: parseInt(req.params.id, 10) } });
     res.json({ succes: true });
   } catch (err) {
     res.status(500).json({ fout: err.message });
