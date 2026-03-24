@@ -3,7 +3,13 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function seed() {
-  // schoolnaam NIET vooraf aanmaken — SetupWizard doet dat bij eerste gebruik
+  // Standaard inloggegevens instellen als de school nog niet is opgezet
+  const schoolnaam = await prisma.instelling.findUnique({ where: { sleutel: 'schoolnaam' } });
+  if (!schoolnaam) {
+    await prisma.instelling.create({ data: { sleutel: 'schoolnaam', waarde: 'Krimpenerwaard College' } });
+    await prisma.instelling.create({ data: { sleutel: 'beheer_wachtwoord', waarde: 'krimpen2026' } });
+    console.log('Standaard school aangemaakt: wachtwoord = krimpen2026');
+  }
 
   // Standaard lokalen aanmaken als de database leeg is
   const aantalLokalen = await prisma.lokaal.count();

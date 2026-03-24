@@ -5,6 +5,7 @@ import { toonToast } from '../components/Toast.jsx';
 export default function Login({ onInloggen }) {
   const [wachtwoord, setWachtwoord] = useState('');
   const [laden, setLaden] = useState(false);
+  const [toonWachtwoord, setToonWachtwoord] = useState(false);
 
   async function verstuur(e) {
     e.preventDefault();
@@ -25,14 +26,23 @@ export default function Login({ onInloggen }) {
         <h1 className="text-2xl font-bold text-slate-900 mb-2">Roosterplanner</h1>
         <p className="text-slate-500 text-sm mb-6">Log in om verder te gaan</p>
         <form onSubmit={verstuur} className="flex flex-col gap-4">
-          <input
-            type="password"
-            placeholder="Wachtwoord"
-            value={wachtwoord}
-            onChange={e => setWachtwoord(e.target.value)}
-            className="border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            autoFocus
-          />
+          <div className="relative">
+            <input
+              type={toonWachtwoord ? 'text' : 'password'}
+              placeholder="Wachtwoord"
+              value={wachtwoord}
+              onChange={e => setWachtwoord(e.target.value)}
+              className="w-full border border-slate-300 rounded-lg px-4 py-2.5 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              autoFocus
+            />
+            <button
+              type="button"
+              onClick={() => setToonWachtwoord(v => !v)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs select-none"
+            >
+              {toonWachtwoord ? 'Verberg' : 'Toon'}
+            </button>
+          </div>
           <button
             type="submit"
             disabled={laden}
@@ -41,7 +51,7 @@ export default function Login({ onInloggen }) {
             {laden ? 'Bezig...' : 'Inloggen'}
           </button>
         </form>
-        <p className="text-xs text-slate-400 mt-4 text-center">Wachtwoord: krimpen2026</p>
+        <p className="text-xs text-slate-400 mt-4 text-center">Wachtwoord: <strong>krimpen2026</strong></p>
       </div>
     </div>
   );
