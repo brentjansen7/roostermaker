@@ -4,5 +4,5 @@ buildCommand = "DATABASE_URL=postgresql://build:build@localhost:5432/build npm r
 
 [deploy]
 startCommand = "npm start"
-healthcheckPath = "/api/setup-status"
+healthcheckPath = "/api/auth-status"
 healthcheckTimeout = 120
