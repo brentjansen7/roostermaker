@@ -1,0 +1,11 @@
+{
+  "name": "roosterplanner",
+  "version": "1.0.0",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "cd backend && npm install && node build.mjs",
+    "start": "cd backend && npm start"
+  }
+}
