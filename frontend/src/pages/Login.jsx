@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { authApi } from '../api/client.js';
 import { toonToast } from '../components/Toast.jsx';
 
@@ -6,6 +7,7 @@ export default function Login({ onInloggen }) {
   const [wachtwoord, setWachtwoord] = useState('');
   const [laden, setLaden] = useState(false);
   const [toonWachtwoord, setToonWachtwoord] = useState(false);
+  const navigate = useNavigate();
 
   async function verstuur(e) {
     e.preventDefault();
@@ -13,6 +15,7 @@ export default function Login({ onInloggen }) {
     try {
       await authApi.login(wachtwoord);
       onInloggen?.();
+      navigate('/');
     } catch (err) {
       toonToast(err.message || 'Verkeerd wachtwoord', 'fout');
     } finally {

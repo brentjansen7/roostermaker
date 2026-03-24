@@ -66,7 +66,7 @@ export default function App() {
     <BrowserRouter>
       <ToastContainer />
       <Routes>
-        <Route path="/login" element={<Login onInloggen={() => setIngelogd(true)} />} />
+        <Route path="/login" element={ingelogd ? <Navigate to="/" replace /> : <Login onInloggen={() => setIngelogd(true)} />} />
         <Route element={<PrivateRoute ingelogd={ingelogd} laden={false} />}>
           <Route element={<Layout />}>
             <Route path="/" element={<Dashboard />} />
