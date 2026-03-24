@@ -21,11 +21,19 @@ const opts = { cwd: __dirname, env, stdio: 'inherit' };
 
 // Schema synchroniseren (aanmaken/bijwerken tabellen)
 try {
+  console.log('Schema sync starten...');
   execSync('npx prisma db push --accept-data-loss', opts);
+  console.log('Schema sync klaar.');
 } catch (err) {
-  console.error('Schema sync mislukt (niet fataal):', err.message);
+  console.error('Schema sync mislukt:', err.message?.slice(0, 500));
 }
-execSync('node src/seed.js', opts);
+
+// Seed data (niet fataal)
+try {
+  execSync('node src/seed.js', opts);
+} catch (err) {
+  console.error('Seed mislukt (niet fataal):', err.message?.slice(0, 200));
+}
 
 // Start server en forward signalen zodat Railway de app netjes kan stoppen
 const server = spawn('node', ['src/index.js'], { ...opts, stdio: 'inherit' });
