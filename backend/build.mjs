@@ -7,9 +7,15 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const frontendDir = join(__dirname, '../frontend');
 const publicDir = join(__dirname, 'public');
 
-// Prisma client genereren (geen DB-verbinding nodig)
+// Prisma client genereren — DATABASE_URL hoeft niet echt te werken tijdens build
+const buildEnv = {
+  ...process.env,
+  DATABASE_URL: (process.env.DATABASE_URL && (process.env.DATABASE_URL.startsWith('postgresql://') || process.env.DATABASE_URL.startsWith('postgres://')))
+    ? process.env.DATABASE_URL
+    : 'postgresql://build:build@localhost:5432/build',
+};
 console.log('Prisma: client genereren...');
-execSync('npx prisma generate', { cwd: __dirname, stdio: 'inherit' });
+execSync('npx prisma generate', { cwd: __dirname, stdio: 'inherit', env: buildEnv });
 
 console.log('Frontend installeren...');
 execSync('npm install', { cwd: frontendDir, stdio: 'inherit' });
