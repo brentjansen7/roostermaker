@@ -18,9 +18,19 @@ export async function runSEAlgoritme(roosterId) {
 
   if (!rooster) throw new Error('SE Rooster niet gevonden');
 
-  // Haal beschikbare lokalen en tijdslots op
+  // Haal beschikbare lokalen, tijdslots en alle docent-vak koppelingen op in één query
   const lokalen = await prisma.lokaal.findMany({ where: { beschikbaar: true } });
   const tijdslots = genereerTijdslots(); // dag 1-5, uur 1-8
+
+  // Pre-fetch alle docenten per vak (voorkomt N+1 queries in de loop)
+  const alleDocentVakken = await prisma.docentVak.findMany({
+    where: { vakId: { in: [...new Set(rooster.inschrijvingen.map(i => i.vakId))] } },
+    include: { docent: true },
+  });
+  const docentPerVak = new Map();
+  for (const dv of alleDocentVakken) {
+    if (!docentPerVak.has(dv.vakId)) docentPerVak.set(dv.vakId, dv);
+  }
 
   // Bouw busy-maps
   const docentBusy = new Map(); // docentId -> Set<"dag_uur">
@@ -68,12 +78,7 @@ export async function runSEAlgoritme(roosterId) {
 
   for (const [vakId, inschrijvingen] of gesorteerdeVakken) {
     const vak = inschrijvingen[0].vak;
-
-    // Zoek docent voor dit vak
-    const docentVak = await prisma.docentVak.findFirst({
-      where: { vakId },
-      include: { docent: true },
-    });
+    const docentVak = docentPerVak.get(vakId) || null; // uit pre-fetched map
 
     // Splits inschrijvingen in groepen op basis van lokaal capaciteit
     const maxPerLes = 30;

@@ -54,7 +54,6 @@ export default function Login({ onInloggen }) {
             {laden ? 'Bezig...' : 'Inloggen'}
           </button>
         </form>
-        <p className="text-xs text-slate-400 mt-4 text-center">Wachtwoord: <strong>krimpen2026</strong></p>
       </div>
     </div>
   );

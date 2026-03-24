@@ -13,6 +13,14 @@ export async function runToetsweekAlgoritme(toetsweekId) {
   const lokalen = await prisma.lokaal.findMany({ where: { beschikbaar: true }, orderBy: { capaciteit: 'desc' } });
   const tijdslots = genereerTijdslots();
 
+  // Pre-fetch alle docent-vak koppelingen (voorkomt N+1 queries)
+  const vakIds = [...new Set(toetsweek.deelnames.map(d => d.vakId))];
+  const alleDocentVakken = await prisma.docentVak.findMany({ where: { vakId: { in: vakIds } } });
+  const docentPerVak = new Map();
+  for (const dv of alleDocentVakken) {
+    if (!docentPerVak.has(dv.vakId)) docentPerVak.set(dv.vakId, dv);
+  }
+
   // Verwijder automatisch geplande lessen
   await prisma.toetsLes.deleteMany({ where: { toetsweekId, handmatigGezet: false } });
   await prisma.toetsDeelname.updateMany({
@@ -78,8 +86,7 @@ export async function runToetsweekAlgoritme(toetsweekId) {
   for (const [vakId, leerlingIds] of gesorteerdeVakken) {
     const leerlingenArray = [...leerlingIds];
 
-    // Zoek docent voor dit vak
-    const docentVak = await prisma.docentVak.findFirst({ where: { vakId } });
+    const docentVak = docentPerVak.get(vakId) || null; // uit pre-fetched map
 
     // Zoek passend lokaal (grootste beschikbare)
     let ingepland = false;

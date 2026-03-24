@@ -1,9 +1,12 @@
 import express from 'express';
 import cors from 'cors';
 import session from 'express-session';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { existsSync } from 'fs';
+import { timingSafeEqual } from 'crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -31,50 +34,86 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 
 const prisma = new PrismaClient();
 
-const allowedOrigins = [FRONTEND_URL, /\.railway\.app$/, /\.up\.railway\.app$/];
+// Security headers
+app.use(helmet({ contentSecurityPolicy: false }));
+
+// CORS: alleen toegestane origins
+const allowedOrigins = [
+  FRONTEND_URL,
+  'http://localhost:5173',
+  'http://localhost:3001',
+  /\.railway\.app$/,
+];
 app.use(cors({
   origin: (origin, cb) => {
-    if (!origin) return cb(null, true);
-    if (allowedOrigins.some(o => typeof o === 'string' ? o === origin : o.test(origin))) return cb(null, true);
-    cb(null, true); // open in production achter Railway proxy
+    if (!origin) return cb(null, true); // curl / server-side requests
+    const toegestaan = allowedOrigins.some(o =>
+      typeof o === 'string' ? o === origin : o.test(origin)
+    );
+    cb(toegestaan ? null : new Error('CORS geblokkeerd'), toegestaan);
   },
   credentials: true,
 }));
-app.use(express.json());
+
+app.use(express.json({ limit: '1mb' }));
 app.set('trust proxy', 1);
-app.use(
-  session({
-    secret: SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: false,
-      httpOnly: true,
-      sameSite: 'lax',
-      maxAge: 24 * 60 * 60 * 1000,
-    },
-  })
-);
+
+app.use(session({
+  secret: SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: isProduction,
+    httpOnly: true,
+    sameSite: isProduction ? 'none' : 'lax',
+    maxAge: 24 * 60 * 60 * 1000,
+  },
+}));
+
+// Rate limiter: max 10 loginpogingen per 5 minuten per IP
+const loginLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 10,
+  message: { fout: 'Te veel pogingen. Probeer het over 5 minuten opnieuw.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 function vereistLogin(req, res, next) {
   if (req.session && req.session.ingelogd) return next();
   res.status(401).json({ fout: 'Niet ingelogd' });
 }
 
+// Timing-safe wachtwoordvergelijking (voorkomt timing attacks)
+function wachtwoordKlopt(ingevoerd, opgeslagen) {
+  try {
+    const a = Buffer.from(ingevoerd);
+    const b = Buffer.from(opgeslagen);
+    if (a.length !== b.length) return false;
+    return timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
+}
+
 // Auth routes
-app.post('/api/login', async (req, res) => {
+app.post('/api/login', loginLimiter, async (req, res) => {
   try {
     const { wachtwoord } = req.body;
+    if (!wachtwoord || typeof wachtwoord !== 'string') {
+      return res.status(400).json({ fout: 'Wachtwoord is verplicht' });
+    }
     const instelling = await prisma.instelling.findUnique({ where: { sleutel: 'beheer_wachtwoord' } });
-    const juistWachtwoord = instelling ? instelling.waarde : 'rooster2026';
-    if (wachtwoord === juistWachtwoord) {
+    const juistWachtwoord = instelling?.waarde || 'rooster2026';
+    if (wachtwoordKlopt(wachtwoord, juistWachtwoord)) {
       req.session.ingelogd = true;
       res.json({ succes: true });
     } else {
       res.status(401).json({ fout: 'Verkeerd wachtwoord' });
     }
   } catch (err) {
-    res.status(500).json({ fout: 'Serverfout: ' + err.message });
+    console.error('Login fout:', err);
+    res.status(500).json({ fout: 'Serverfout' });
   }
 });
 
@@ -87,30 +126,42 @@ app.get('/api/auth-status', (req, res) => {
   res.json({ ingelogd: !!(req.session && req.session.ingelogd) });
 });
 
-// Setup status (is de school al ingericht?)
+// Setup status
 app.get('/api/setup-status', async (req, res) => {
-  const schoolnaam = await prisma.instelling.findUnique({ where: { sleutel: 'schoolnaam' } });
-  res.json({ klaar: !!(schoolnaam && schoolnaam.waarde) });
+  try {
+    const schoolnaam = await prisma.instelling.findUnique({ where: { sleutel: 'schoolnaam' } });
+    res.json({ klaar: !!(schoolnaam && schoolnaam.waarde) });
+  } catch (err) {
+    console.error('Setup-status fout:', err);
+    res.status(500).json({ fout: 'Serverfout' });
+  }
 });
 
 // Setup eerste keer
 app.post('/api/setup', async (req, res) => {
-  const { schoolnaam, wachtwoord } = req.body;
-  if (!schoolnaam) return res.status(400).json({ fout: 'Schoolnaam is verplicht' });
-  await prisma.instelling.upsert({
-    where: { sleutel: 'schoolnaam' },
-    update: { waarde: schoolnaam },
-    create: { sleutel: 'schoolnaam', waarde: schoolnaam },
-  });
-  if (wachtwoord) {
+  try {
+    const { schoolnaam, wachtwoord } = req.body;
+    if (!schoolnaam || typeof schoolnaam !== 'string' || !schoolnaam.trim()) {
+      return res.status(400).json({ fout: 'Schoolnaam is verplicht' });
+    }
     await prisma.instelling.upsert({
-      where: { sleutel: 'beheer_wachtwoord' },
-      update: { waarde: wachtwoord },
-      create: { sleutel: 'beheer_wachtwoord', waarde: wachtwoord },
+      where: { sleutel: 'schoolnaam' },
+      update: { waarde: schoolnaam.trim() },
+      create: { sleutel: 'schoolnaam', waarde: schoolnaam.trim() },
     });
+    if (wachtwoord && typeof wachtwoord === 'string' && wachtwoord.length >= 6) {
+      await prisma.instelling.upsert({
+        where: { sleutel: 'beheer_wachtwoord' },
+        update: { waarde: wachtwoord },
+        create: { sleutel: 'beheer_wachtwoord', waarde: wachtwoord },
+      });
+    }
+    req.session.ingelogd = true;
+    res.json({ succes: true });
+  } catch (err) {
+    console.error('Setup fout:', err);
+    res.status(500).json({ fout: 'Serverfout' });
   }
-  req.session.ingelogd = true;
-  res.json({ succes: true });
 });
 
 // Protected routes
