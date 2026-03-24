@@ -81,11 +81,31 @@ router.delete('/:id', async (req, res) => {
 router.post('/:id/klassen', async (req, res) => {
   try {
     const roosterId = parseInt(req.params.id);
-    const { naam, leerjaar, niveau, aantalLeerlingen } = req.body;
+    const { naam, leerjaar, niveau, aantalLeerlingen, maxEindtijd } = req.body;
     const klas = await prisma.klas.create({
-      data: { roosterId, naam, leerjaar, niveau, aantalLeerlingen: aantalLeerlingen || 0 },
+      data: { roosterId, naam, leerjaar, niveau, aantalLeerlingen: aantalLeerlingen || 0, maxEindtijd: maxEindtijd || null },
     });
     res.status(201).json(klas);
+  } catch (err) {
+    res.status(500).json({ fout: err.message });
+  }
+});
+
+// Klas bijwerken (naam, maxEindtijd, etc.)
+router.put('/:id/klassen/:klasId', async (req, res) => {
+  try {
+    const { naam, leerjaar, niveau, aantalLeerlingen, maxEindtijd } = req.body;
+    const data = {};
+    if (naam !== undefined) data.naam = naam;
+    if (leerjaar !== undefined) data.leerjaar = parseInt(leerjaar);
+    if (niveau !== undefined) data.niveau = niveau;
+    if (aantalLeerlingen !== undefined) data.aantalLeerlingen = parseInt(aantalLeerlingen);
+    if (maxEindtijd !== undefined) data.maxEindtijd = maxEindtijd || null;
+    const klas = await prisma.klas.update({
+      where: { id: parseInt(req.params.klasId) },
+      data,
+    });
+    res.json(klas);
   } catch (err) {
     res.status(500).json({ fout: err.message });
   }

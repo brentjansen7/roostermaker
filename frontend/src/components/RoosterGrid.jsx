@@ -35,9 +35,9 @@ function SlotKaart({ slot, heeftConflict, isDragging }) {
       ${isDragging ? 'opacity-50' : ''}
     `}>
       <p className="font-semibold truncate mb-1">{vak}</p>
-      <p className="truncate text-slate-500"><span className="text-slate-400">Doc </span>{docent}</p>
-      <p className="truncate text-slate-500"><span className="text-slate-400">Klas</span> {klas}</p>
-      <p className="truncate text-slate-500"><span className="text-slate-400">Lok </span>{lokaal}</p>
+      <p className="truncate text-slate-500"><span className="text-slate-400">Doc  </span>{docent}</p>
+      <p className="truncate text-slate-500"><span className="text-slate-400">Klas </span>{klas}</p>
+      <p className="truncate text-slate-500"><span className="text-slate-400">Lok  </span>{lokaal}</p>
       {heeftConflict && (
         <p className="text-red-600 font-medium mt-0.5">⚠ conflict</p>
       )}

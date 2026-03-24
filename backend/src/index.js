@@ -35,7 +35,9 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 const prisma = new PrismaClient();
 
 // Security headers
-app.use(helmet({ contentSecurityPolicy: false }));
+app.use(helmet({
+  contentSecurityPolicy: isProduction ? undefined : false, // aan in productie, uit lokaal (Vite HMR)
+}));
 
 // CORS: alleen toegestane origins
 const allowedOrigins = [

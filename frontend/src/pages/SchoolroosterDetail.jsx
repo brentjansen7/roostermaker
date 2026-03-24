@@ -4,6 +4,8 @@ import { schoolroostersApi } from '../api/client.js';
 import { toonToast } from '../components/Toast.jsx';
 import RoosterGrid from '../components/RoosterGrid.jsx';
 
+const TIJDOPTIES = ['', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '15:30', '16:00'];
+
 const TABBLADEN = ['Klassen & Lessen', 'Rooster', 'Conflicten', 'Exporteren'];
 
 export default function SchoolroosterDetail() {
@@ -12,6 +14,7 @@ export default function SchoolroosterDetail() {
   const [actieveTab, setActieveTab] = useState('Rooster');
   const [algoritmeStatus, setAlgoritmeStatus] = useState({ status: 'idle', percent: 0 });
   const [conflicten, setConflicten] = useState([]);
+  const [klasEindtijden, setKlasEindtijden] = useState({}); // klasId -> tijdstring
   const pollingRef = useRef(null);
 
   useEffect(() => {
@@ -23,9 +26,22 @@ export default function SchoolroosterDetail() {
     try {
       const r = await schoolroostersApi.ophalen(id);
       setRooster(r);
+      // Initialiseer eindtijden vanuit geladen data
+      const tijden = {};
+      for (const k of r.klassen) tijden[k.id] = k.maxEindtijd || '';
+      setKlasEindtijden(tijden);
       // Laad conflicten
       const c = await schoolroostersApi.conflicten(id).catch(() => []);
       setConflicten(c);
+    } catch (err) {
+      toonToast(err.message, 'fout');
+    }
+  }
+
+  async function slaEindtijdOp(klasId) {
+    try {
+      await schoolroostersApi.klasBewerken(id, klasId, { maxEindtijd: klasEindtijden[klasId] || null });
+      toonToast('Eindtijd opgeslagen', 'succes');
     } catch (err) {
       toonToast(err.message, 'fout');
     }
@@ -113,10 +129,29 @@ export default function SchoolroosterDetail() {
         <div className="grid gap-4">
           {rooster.klassen.map(klas => (
             <div key={klas.id} className="bg-white border border-slate-200 rounded-xl p-4">
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                 <div>
                   <span className="font-bold text-slate-900">{klas.naam}</span>
                   <span className="ml-2 text-sm text-slate-400">{klas.niveau} · {klas.aantalLeerlingen} leerlingen</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <label className="text-slate-500 text-xs">Max. eindtijd:</label>
+                  <select
+                    value={klasEindtijden[klas.id] ?? ''}
+                    onChange={e => setKlasEindtijden(prev => ({ ...prev, [klas.id]: e.target.value }))}
+                    className="border border-slate-300 rounded px-2 py-1 text-xs"
+                  >
+                    <option value="">Geen limiet</option>
+                    {TIJDOPTIES.filter(Boolean).map(t => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => slaEindtijdOp(klas.id)}
+                    className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700"
+                  >
+                    Opslaan
+                  </button>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">

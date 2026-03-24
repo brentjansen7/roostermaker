@@ -60,7 +60,7 @@ export default function ToetsweekDetail() {
       vakCode: l.vak?.code,
       docentAfkorting: l.docent?.afkorting,
       lokaalCode: l.lokaal?.code,
-      klasNaam: l.deelnames?.length ? `${l.deelnames.length} lrl` : '—',
+      klasNaam: l.deelnames?.length ? `${l.deelnames.length} leerlingen` : '—',
     }));
 
   // Bereken per dag hoeveel toetsen een leerling heeft (voor kleurcodering)

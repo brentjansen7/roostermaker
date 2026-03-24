@@ -21,9 +21,11 @@ router.get('/', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const { code, naam, isSeVak } = req.body;
+    const { code, naam, isSeVak, prioriteit } = req.body;
     if (!code || !naam) return res.status(400).json({ fout: 'Code en naam zijn verplicht' });
-    const vak = await prisma.vak.create({ data: { code, naam, isSeVak: isSeVak !== false } });
+    const vak = await prisma.vak.create({
+      data: { code, naam, isSeVak: isSeVak !== false, prioriteit: prioriteit ?? 2 },
+    });
     res.status(201).json(vak);
   } catch (err) {
     res.status(500).json({ fout: err.message });
@@ -32,10 +34,12 @@ router.post('/', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   try {
-    const { code, naam, isSeVak } = req.body;
+    const { code, naam, isSeVak, prioriteit } = req.body;
+    const data = { code, naam, isSeVak };
+    if (prioriteit !== undefined) data.prioriteit = parseInt(prioriteit);
     const vak = await prisma.vak.update({
       where: { id: parseInt(req.params.id) },
-      data: { code, naam, isSeVak },
+      data,
     });
     res.json(vak);
   } catch (err) {

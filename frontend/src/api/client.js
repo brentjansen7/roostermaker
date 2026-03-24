@@ -100,6 +100,7 @@ export const schoolroostersApi = {
   aanmaken: (data) => api.post('/schoolroosters', data),
   bewerken: (id, data) => api.put(`/schoolroosters/${id}`, data),
   verwijderen: (id) => api.delete(`/schoolroosters/${id}`),
+  klasBewerken: (roosterId, klasId, data) => api.put(`/schoolroosters/${roosterId}/klassen/${klasId}`, data),
   slotVerplaatsen: (id, slotId, data) => api.put(`/schoolroosters/${id}/slots/${slotId}`, data),
   runAlgoritme: (id) => api.post(`/schoolroosters/${id}/algoritme/run`, {}),
   algoritmeStatus: (id) => api.get(`/schoolroosters/${id}/algoritme/status`),

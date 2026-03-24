@@ -23,6 +23,8 @@ export async function runRoosterAlgoritme(roosterId) {
       },
     },
   });
+  // Tijdslot-naar-uur mapping: uur 1=8:00, 2=9:00, ..., 8=15:00 (eindtijd = starttijd + 1u)
+  const UUR_EINDTIJD = { 1: '09:00', 2: '10:00', 3: '11:00', 4: '12:00', 5: '13:00', 6: '14:00', 7: '15:00', 8: '16:00' };
   if (!rooster) throw new Error('Schoolrooster niet gevonden');
 
   const lokalen = await prisma.lokaal.findMany({ where: { beschikbaar: true } });
@@ -48,6 +50,8 @@ export async function runRoosterAlgoritme(roosterId) {
           docentId: docentVak?.docentId || null,
           aantalLeerlingen: klas.aantalLeerlingen,
           vakCode: les.vak.code,
+          vakPrioriteit: les.vak.prioriteit ?? 2,
+          klasMaxEindtijd: klas.maxEindtijd || null, // bijv. "15:30"
         });
       }
     }
@@ -73,12 +77,17 @@ export async function runRoosterAlgoritme(roosterId) {
     if (slot.lokaalId) markeerBezet(lokaalBusy, slot.lokaalId, key);
   }
 
-  // Sorteer lessen: klassen met meer lessen/week eerst (MRV)
+  // Sorteer lessen: eerst op prioriteit (1=hoog eerst), dan op klasgrootte (MRV)
   const klasLesCount = new Map();
   for (const les of lesLijst) {
     klasLesCount.set(les.klasId, (klasLesCount.get(les.klasId) || 0) + 1);
   }
-  lesLijst.sort((a, b) => (klasLesCount.get(b.klasId) || 0) - (klasLesCount.get(a.klasId) || 0));
+  lesLijst.sort((a, b) => {
+    // Primair: hogere prioriteit (lagere waarde) eerst
+    if (a.vakPrioriteit !== b.vakPrioriteit) return a.vakPrioriteit - b.vakPrioriteit;
+    // Secundair: klassen met meer lessen eerst (MRV)
+    return (klasLesCount.get(b.klasId) || 0) - (klasLesCount.get(a.klasId) || 0);
+  });
 
   let ingepland = 0;
   const totaal = lesLijst.length;
@@ -92,6 +101,12 @@ export async function runRoosterAlgoritme(roosterId) {
 
       if (klasBusy.get(lesInfo.klasId)?.has(key)) continue;
       if (lesInfo.docentId && docentBusy.get(lesInfo.docentId)?.has(key)) continue;
+
+      // Tijdslimiet check: sla tijdslots over waarbij eindtijd later is dan klasMaxEindtijd
+      if (lesInfo.klasMaxEindtijd) {
+        const eindtijdSlot = UUR_EINDTIJD[uur];
+        if (eindtijdSlot && eindtijdSlot > lesInfo.klasMaxEindtijd) continue;
+      }
 
       const lokaal = lokalen.find(l =>
         !lokaalBusy.get(l.id)?.has(key) && l.capaciteit >= lesInfo.aantalLeerlingen

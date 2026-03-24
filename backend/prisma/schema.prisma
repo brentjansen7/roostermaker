@@ -44,10 +44,11 @@ model Docent {
 }
 
 model Vak {
-  id       Int     @id @default(autoincrement())
-  code     String  @unique
-  naam     String
-  isSeVak  Boolean @default(true)
+  id        Int     @id @default(autoincrement())
+  code      String  @unique
+  naam      String
+  isSeVak   Boolean @default(true)
+  prioriteit Int    @default(2) // 1=hoog (examens/HAVO5), 2=normaal, 3=laag
 
   docenten        DocentVak[]
   leerlingen      LeerlingVak[]
@@ -225,6 +226,7 @@ model Klas {
   leerjaar         Int
   niveau           String
   aantalLeerlingen Int           @default(0)
+  maxEindtijd      String?       // bijv. "15:30" — lessen worden niet na dit tijdstip ingepland
 
   lessen Les[]
 
