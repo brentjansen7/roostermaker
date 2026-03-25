@@ -54,15 +54,19 @@ export default function ToetsweekDetail() {
 
   const slots = toetsweek.lessen
     .filter(l => l.dag && l.uur)
-    .map(l => ({
-      id: l.id,
-      dag: l.dag,
-      uur: l.uur,
-      vakCode: l.vak?.code,
-      docentAfkorting: l.docent?.afkorting,
-      lokaalCode: l.lokaal?.code,
-      klasNaam: l.deelnames?.length ? `${l.deelnames.length} leerlingen` : '—',
-    }));
+    .map(l => {
+      const deelnames = l.deelnames || [];
+      const klassen = [...new Set(deelnames.map(d => d.leerling?.klas).filter(Boolean))].sort();
+      const leerlingenLijst = deelnames.map(d => d.leerling?.naam || '?').sort();
+      return {
+        id: l.id, dag: l.dag, uur: l.uur,
+        vakCode: l.vak?.code,
+        docentAfkorting: l.docent?.afkorting,
+        lokaalCode: l.lokaal?.code,
+        klassen,
+        leerlingenLijst,
+      };
+    });
 
   // Bereken per dag hoeveel toetsen een leerling heeft (voor kleurcodering)
   const leerlingDagTelling = {};

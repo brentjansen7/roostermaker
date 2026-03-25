@@ -57,15 +57,19 @@ export default function SERoosterDetail() {
   // Maak slots array voor RoosterGrid (SE lessen → unified format)
   const slots = rooster.lessen
     .filter(l => l.dag && l.uur)
-    .map(l => ({
-      id: l.id,
-      dag: l.dag,
-      uur: l.uur,
-      vakCode: l.vak?.code,
-      docentAfkorting: l.docent?.afkorting,
-      lokaalCode: l.lokaal?.code,
-      klasNaam: l.inschrijvingen?.length ? `${l.inschrijvingen.length} leerlingen` : '—',
-    }));
+    .map(l => {
+      const inschrijvingen = l.inschrijvingen || [];
+      const klassen = [...new Set(inschrijvingen.map(i => i.leerling?.klas).filter(Boolean))].sort();
+      const leerlingenLijst = inschrijvingen.map(i => i.leerling?.naam || '?').sort();
+      return {
+        id: l.id, dag: l.dag, uur: l.uur,
+        vakCode: l.vak?.code,
+        docentAfkorting: l.docent?.afkorting,
+        lokaalCode: l.lokaal?.code,
+        klassen,
+        leerlingenLijst,
+      };
+    });
 
   // Groepeer inschrijvingen per vak
   const perVak = {};
