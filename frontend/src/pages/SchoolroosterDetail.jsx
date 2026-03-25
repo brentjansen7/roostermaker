@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { schoolroostersApi } from '../api/client.js';
 import { toonToast } from '../components/Toast.jsx';
 import RoosterGrid from '../components/RoosterGrid.jsx';
@@ -10,6 +10,7 @@ const TABBLADEN = ['Klassen & Lessen', 'Rooster', 'Conflicten', 'Exporteren'];
 
 export default function SchoolroosterDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [rooster, setRooster] = useState(null);
   const [actieveTab, setActieveTab] = useState('Rooster');
   const [algoritmeStatus, setAlgoritmeStatus] = useState({ status: 'idle', percent: 0 });
@@ -107,6 +108,9 @@ export default function SchoolroosterDetail() {
 
   return (
     <div className="p-8">
+      <button onClick={() => navigate('/schoolroosters')} className="text-sm text-slate-400 hover:text-slate-600 mb-4 flex items-center gap-1">
+        ← Terug
+      </button>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-900">{rooster.naam}</h1>
         <p className="text-slate-500 text-sm mt-1">

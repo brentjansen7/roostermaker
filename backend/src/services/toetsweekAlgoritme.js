@@ -117,18 +117,25 @@ export async function runToetsweekAlgoritme(toetsweekId) {
         if (hardProbleem) continue;
       }
 
-      // Zoek genoeg parallelle lokalen voor alle deelnemers
-      const maxPerLokaal = 30;
-      const benodigdeLokalen = Math.ceil(leerlingenArray.length / maxPerLokaal);
+      // Zoek genoeg lokalen op basis van werkelijke capaciteit
       const vrijeLokalen = lokalen.filter(l => !lokaalBusy.get(l.id)?.has(key));
-      if (vrijeLokalen.length < benodigdeLokalen) continue;
-      const gekozenLokalen = vrijeLokalen.slice(0, benodigdeLokalen);
+      let resterend = leerlingenArray.length;
+      const gekozenLokalen = [];
+      for (const lok of vrijeLokalen) {
+        if (resterend <= 0) break;
+        gekozenLokalen.push(lok);
+        resterend -= (lok.capaciteit || 30);
+      }
+      if (resterend > 0) continue; // niet genoeg capaciteit
 
       // Plan in als parallel lessen (één per lokaal)
       const deelnames = toetsweek.deelnames.filter(d => d.vakId === vakId);
+      let offset = 0;
       for (let g = 0; g < gekozenLokalen.length; g++) {
         const lokaal = gekozenLokalen[g];
-        const groepDeelnames = deelnames.slice(g * maxPerLokaal, (g + 1) * maxPerLokaal);
+        const cap = lokaal.capaciteit || 30;
+        const groepDeelnames = deelnames.slice(offset, offset + cap);
+        offset += cap;
         if (groepDeelnames.length === 0) break;
 
         const les = await prisma.toetsLes.create({
@@ -142,11 +149,11 @@ export async function runToetsweekAlgoritme(toetsweekId) {
           },
         });
 
+        await prisma.toetsDeelname.updateMany({
+          where: { id: { in: groepDeelnames.map(d => d.id) } },
+          data: { toetsLesId: les.id },
+        });
         for (const deelname of groepDeelnames) {
-          await prisma.toetsDeelname.update({
-            where: { id: deelname.id },
-            data: { toetsLesId: les.id },
-          });
           telDagOp(leerlingDagTelling, deelname.leerlingId, dag);
         }
         markeerBezet(lokaalBusy, lokaal.id, key);

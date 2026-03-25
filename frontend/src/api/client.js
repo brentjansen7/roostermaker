@@ -77,6 +77,7 @@ export const seRoostersApi = {
   verwijderen: (id) => api.delete(`/se-roosters/${id}`),
   inschrijvingToevoegen: (id, data) => api.post(`/se-roosters/${id}/inschrijvingen`, data),
   inschrijvingVerwijderen: (id, inschrijvingId) => api.delete(`/se-roosters/${id}/inschrijvingen/${inschrijvingId}`),
+  inschrijvingenGenereer: (id, data) => api.post(`/se-roosters/${id}/inschrijvingen/genereer`, data),
   lesVerplaatsen: (id, lesId, data) => api.put(`/se-roosters/${id}/lessen/${lesId}`, data),
   runAlgoritme: (id) => api.post(`/se-roosters/${id}/algoritme/run`, {}),
   exportZermelo: (id) => `${BASIS_URL}/export/se-roosters/${id}/zermelo`,

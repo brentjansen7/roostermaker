@@ -89,10 +89,12 @@ router.post('/:id/inschrijvingen', async (req, res) => {
   try {
     const roosterId = parseInt(req.params.id);
     const { leerlingId, vakId } = req.body;
-    const inschrijving = await prisma.sEInschrijving.upsert({
+    const bestaand = await prisma.sEInschrijving.findUnique({
       where: { roosterId_leerlingId_vakId: { roosterId, leerlingId, vakId } },
-      update: {},
-      create: { roosterId, leerlingId, vakId },
+    });
+    if (bestaand) return res.status(200).json(bestaand);
+    const inschrijving = await prisma.sEInschrijving.create({
+      data: { roosterId, leerlingId, vakId },
     });
     res.status(201).json(inschrijving);
   } catch (err) {
@@ -133,6 +135,34 @@ router.post('/:id/algoritme/run', async (req, res) => {
     const roosterId = parseInt(req.params.id);
     const resultaat = await runSEAlgoritme(roosterId);
     res.json(resultaat);
+  } catch (err) {
+    res.status(500).json({ fout: err.message });
+  }
+});
+
+// Bulk inschrijvingen genereren vanuit leerling SE-vak koppelingen
+router.post('/:id/inschrijvingen/genereer', async (req, res) => {
+  try {
+    const roosterId = parseInt(req.params.id);
+    const { niveaus, leerjaren } = req.body;
+
+    const where = {};
+    if (niveaus?.length) where.niveau = { in: niveaus };
+    if (leerjaren?.length) where.leerjaar = { in: leerjaren };
+
+    const leerlingen = await prisma.leerling.findMany({
+      where,
+      include: { vakken: { include: { vak: { select: { isSeVak: true } } } } },
+    });
+
+    const data = leerlingen.flatMap(leerling =>
+      leerling.vakken
+        .filter(lv => lv.vak?.isSeVak)
+        .map(lv => ({ roosterId, leerlingId: leerling.id, vakId: lv.vakId }))
+    );
+
+    const result = await prisma.sEInschrijving.createMany({ data, skipDuplicates: true });
+    res.json({ aangemaakt: result.count });
   } catch (err) {
     res.status(500).json({ fout: err.message });
   }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { toetsweekenApi } from '../api/client.js';
 import { toonToast } from '../components/Toast.jsx';
 import RoosterGrid from '../components/RoosterGrid.jsx';
@@ -10,6 +10,7 @@ const DAGEN_NAMEN = { 1: 'Maandag', 2: 'Dinsdag', 3: 'Woensdag', 4: 'Donderdag',
 
 export default function ToetsweekDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [toetsweek, setToetsweek] = useState(null);
   const [actieveTab, setActieveTab] = useState('Rooster');
 
@@ -73,8 +74,23 @@ export default function ToetsweekDetail() {
   }
   const maxToetsenPerDag = Math.max(0, ...Object.values(leerlingDagTelling));
 
+  // Groepeer deelnames per vak voor de deelnames-tab
+  const perVak = {};
+  for (const deelname of toetsweek.deelnames) {
+    const code = deelname.vak?.code || deelname.vakId;
+    if (!perVak[code]) perVak[code] = { naam: deelname.vak?.naam, code, leerlingen: [] };
+    perVak[code].leerlingen.push(deelname);
+  }
+  for (const les of toetsweek.lessen) {
+    const code = les.vak?.code || les.vakId;
+    if (perVak[code]) perVak[code].les = les;
+  }
+
   return (
     <div className="p-8">
+      <button onClick={() => navigate('/toetsweken')} className="text-sm text-slate-400 hover:text-slate-600 mb-4 flex items-center gap-1">
+        ← Terug
+      </button>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-900">{toetsweek.naam}</h1>
         <p className="text-slate-500 text-sm mt-1">
@@ -115,22 +131,25 @@ export default function ToetsweekDetail() {
                   </tr>
                 </thead>
                 <tbody>
-                  {toetsweek.lessen.map(les => (
-                    <tr key={les.id} className="border-b border-slate-100 last:border-0">
-                      <td className="px-4 py-2.5 font-mono font-semibold">{les.vak?.code}</td>
-                      <td className="px-4 py-2.5 text-right">{les.deelnames?.length || 0}</td>
+                  {Object.entries(perVak).map(([code, info]) => (
+                    <tr key={code} className="border-b border-slate-100 last:border-0">
+                      <td className="px-4 py-2.5 font-mono font-semibold">{code}</td>
+                      <td className="px-4 py-2.5 text-right">{info.leerlingen.length}</td>
                       <td className="px-4 py-2.5">
-                        {les.dag ? (
+                        {info.les?.dag ? (
                           <span className="text-green-600 text-xs">✓ Ingepland</span>
                         ) : (
                           <span className="text-orange-500 text-xs">Niet ingepland</span>
                         )}
                       </td>
                       <td className="px-4 py-2.5 text-slate-500 text-xs">
-                        {les.dag ? `${DAGEN_NAMEN[les.dag]} uur ${les.uur}` : '—'}
+                        {info.les?.dag ? `${DAGEN_NAMEN[info.les.dag]} uur ${info.les.uur}` : '—'}
                       </td>
                     </tr>
                   ))}
+                  {Object.keys(perVak).length === 0 && (
+                    <tr><td colSpan={4} className="px-4 py-8 text-center text-slate-400">Nog geen deelnames — klik op "Genereer vanuit leerling-vakken"</td></tr>
+                  )}
                 </tbody>
               </table>
             </div>

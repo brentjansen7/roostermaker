@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { seRoostersApi } from '../api/client.js';
 import { toonToast } from '../components/Toast.jsx';
 import RoosterGrid from '../components/RoosterGrid.jsx';
@@ -10,6 +10,7 @@ const DAGEN_NAMEN = { 1: 'Maandag', 2: 'Dinsdag', 3: 'Woensdag', 4: 'Donderdag',
 
 export default function SERoosterDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [rooster, setRooster] = useState(null);
   const [actieveTab, setActieveTab] = useState('Rooster');
 
@@ -30,6 +31,16 @@ export default function SERoosterDetail() {
     const res = await seRoostersApi.runAlgoritme(id);
     await laadRooster();
     return res;
+  }
+
+  async function genereerInschrijvingen() {
+    try {
+      const res = await seRoostersApi.inschrijvingenGenereer(id, {});
+      toonToast(`${res.aangemaakt} inschrijvingen gegenereerd`, 'succes');
+      await laadRooster();
+    } catch (err) {
+      toonToast(err.message, 'fout');
+    }
   }
 
   async function slotVerplaats(lesId, dag, uur) {
@@ -68,6 +79,9 @@ export default function SERoosterDetail() {
 
   return (
     <div className="p-8">
+      <button onClick={() => navigate('/se-roosters')} className="text-sm text-slate-400 hover:text-slate-600 mb-4 flex items-center gap-1">
+        ← Terug
+      </button>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-900">{rooster.naam}</h1>
         <p className="text-slate-500 text-sm mt-1">{rooster.schooljaar} · {rooster.inschrijvingen.length} inschrijvingen · {rooster.lessen.length} toetsmomenten</p>
@@ -88,7 +102,13 @@ export default function SERoosterDetail() {
       {actieveTab === 'Inschrijvingen' && (
         <div className="flex gap-6">
           <div className="flex-1">
-            <h2 className="font-semibold text-slate-900 mb-3">Inschrijvingen per vak</h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-semibold text-slate-900">Inschrijvingen per vak</h2>
+              <button onClick={genereerInschrijvingen}
+                className="text-sm bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors">
+                ↺ Genereer vanuit SE-vakken
+              </button>
+            </div>
             <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 border-b border-slate-200">
