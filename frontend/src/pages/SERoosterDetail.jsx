@@ -7,12 +7,17 @@ import AlgoritmePanel from '../components/AlgoritmePanel.jsx';
 
 const TABBLADEN = ['Inschrijvingen', 'Rooster', 'Exporteren'];
 const DAGEN_NAMEN = { 1: 'Maandag', 2: 'Dinsdag', 3: 'Woensdag', 4: 'Donderdag', 5: 'Vrijdag' };
+const ALLE_NIVEAUS = ['mavo', 'havo', 'vwo'];
+const ALLE_LEERJAREN = [1, 2, 3, 4, 5, 6];
 
 export default function SERoosterDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [rooster, setRooster] = useState(null);
   const [actieveTab, setActieveTab] = useState('Rooster');
+  const [toonGenereerForm, setToonGenereerForm] = useState(false);
+  const [filterNiveaus, setFilterNiveaus] = useState([...ALLE_NIVEAUS]);
+  const [filterLeerjaren, setFilterLeerjaren] = useState([...ALLE_LEERJAREN]);
 
   useEffect(() => {
     laadRooster();
@@ -35,12 +40,27 @@ export default function SERoosterDetail() {
 
   async function genereerInschrijvingen() {
     try {
-      const res = await seRoostersApi.inschrijvingenGenereer(id, {});
-      toonToast(`${res.aangemaakt} inschrijvingen gegenereerd`, 'succes');
+      const body = {};
+      if (filterNiveaus.length < ALLE_NIVEAUS.length) body.niveaus = filterNiveaus;
+      if (filterLeerjaren.length < ALLE_LEERJAREN.length) body.leerjaren = filterLeerjaren;
+      const res = await seRoostersApi.inschrijvingenGenereer(id, body);
+      if (res.aangemaakt === 0) {
+        toonToast('Alle leerlingen uit deze selectie staan al ingeschreven', 'info');
+      } else {
+        toonToast(`${res.aangemaakt} inschrijvingen gegenereerd`, 'succes');
+      }
+      setToonGenereerForm(false);
       await laadRooster();
     } catch (err) {
       toonToast(err.message, 'fout');
     }
+  }
+
+  function toggleNiveau(n) {
+    setFilterNiveaus(prev => prev.includes(n) ? prev.filter(x => x !== n) : [...prev, n]);
+  }
+  function toggleLeerjaar(l) {
+    setFilterLeerjaren(prev => prev.includes(l) ? prev.filter(x => x !== l) : [...prev, l]);
   }
 
   async function slotVerplaats(lesId, dag, uur) {
@@ -108,11 +128,46 @@ export default function SERoosterDetail() {
           <div className="flex-1">
             <div className="flex items-center justify-between mb-3">
               <h2 className="font-semibold text-slate-900">Inschrijvingen per vak</h2>
-              <button onClick={genereerInschrijvingen}
+              <button onClick={() => setToonGenereerForm(v => !v)}
                 className="text-sm bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors">
                 ↺ Genereer vanuit SE-vakken
               </button>
             </div>
+
+            {toonGenereerForm && (
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-4">
+                <p className="text-xs font-semibold text-slate-600 mb-2">Niveau</p>
+                <div className="flex gap-3 mb-3">
+                  {ALLE_NIVEAUS.map(n => (
+                    <label key={n} className="flex items-center gap-1.5 cursor-pointer text-sm">
+                      <input type="checkbox" checked={filterNiveaus.includes(n)} onChange={() => toggleNiveau(n)}
+                        className="w-4 h-4 accent-blue-600" />
+                      <span className="uppercase font-medium">{n}</span>
+                    </label>
+                  ))}
+                </div>
+                <p className="text-xs font-semibold text-slate-600 mb-2">Leerjaar</p>
+                <div className="flex gap-2 mb-4">
+                  {ALLE_LEERJAREN.map(l => (
+                    <label key={l} className="flex items-center gap-1 cursor-pointer text-sm">
+                      <input type="checkbox" checked={filterLeerjaren.includes(l)} onChange={() => toggleLeerjaar(l)}
+                        className="w-4 h-4 accent-blue-600" />
+                      <span>{l}</span>
+                    </label>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={genereerInschrijvingen} disabled={!filterNiveaus.length || !filterLeerjaren.length}
+                    className="text-sm bg-blue-600 text-white px-4 py-1.5 rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors">
+                    Genereer
+                  </button>
+                  <button onClick={() => setToonGenereerForm(false)}
+                    className="text-sm text-slate-500 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition-colors">
+                    Annuleer
+                  </button>
+                </div>
+              </div>
+            )}
             <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 border-b border-slate-200">
