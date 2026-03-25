@@ -82,7 +82,7 @@ router.delete('/:id', async (req, res) => {
 router.post('/:id/deelnames/genereer', async (req, res) => {
   try {
     const toetsweekId = parseInt(req.params.id);
-    const { selectie } = req.body; // [{ niveau: 'mavo', leerjaren: [1,2,3] }, ...]
+    const { selectie, vakIds } = req.body; // selectie: [{ niveau, leerjaren }], vakIds: optioneel
 
     const where = {};
     if (selectie?.length) {
@@ -98,7 +98,9 @@ router.post('/:id/deelnames/genereer', async (req, res) => {
     });
 
     const data = leerlingen.flatMap(leerling =>
-      leerling.vakken.map(lv => ({ toetsweekId, leerlingId: leerling.id, vakId: lv.vakId }))
+      leerling.vakken
+        .filter(lv => !vakIds?.length || vakIds.includes(lv.vakId))
+        .map(lv => ({ toetsweekId, leerlingId: leerling.id, vakId: lv.vakId }))
     );
     const result = await prisma.toetsDeelname.createMany({ data, skipDuplicates: true });
     res.json({ aangemaakt: result.count });

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { seRoostersApi } from '../api/client.js';
+import { seRoostersApi, vakkenApi } from '../api/client.js';
 import { toonToast } from '../components/Toast.jsx';
 import RoosterGrid from '../components/RoosterGrid.jsx';
 import AlgoritmePanel from '../components/AlgoritmePanel.jsx';
@@ -18,10 +18,19 @@ export default function SERoosterDetail() {
   const [selectie, setSelectie] = useState(
     Object.fromEntries(Object.entries(NIVEAU_LEERJAREN).map(([n, lj]) => [n, [...lj]]))
   );
+  const [alleVakken, setAlleVakken] = useState([]);
+  const [filterVakIds, setFilterVakIds] = useState(null);
 
+  useEffect(() => { laadRooster(); }, [id]);
   useEffect(() => {
-    laadRooster();
-  }, [id]);
+    if (toonGenereerForm && alleVakken.length === 0) {
+      vakkenApi.lijst().then(v => {
+        const seVakken = v.filter(vak => vak.isSeVak);
+        setAlleVakken(seVakken);
+        setFilterVakIds(seVakken.map(vak => vak.id));
+      }).catch(() => {});
+    }
+  }, [toonGenereerForm]);
 
   async function laadRooster() {
     try {
@@ -43,7 +52,9 @@ export default function SERoosterDetail() {
       const sel = Object.entries(selectie)
         .filter(([, lj]) => lj.length > 0)
         .map(([niveau, leerjaren]) => ({ niveau, leerjaren }));
-      const res = await seRoostersApi.inschrijvingenGenereer(id, { selectie: sel });
+      const body = { selectie: sel };
+      if (filterVakIds && filterVakIds.length < alleVakken.length) body.vakIds = filterVakIds;
+      const res = await seRoostersApi.inschrijvingenGenereer(id, body);
       if (res.aangemaakt === 0) {
         toonToast('Alle leerlingen uit deze selectie staan al ingeschreven', 'info');
       } else {
@@ -168,9 +179,38 @@ export default function SERoosterDetail() {
                     </div>
                   ))}
                 </div>
+                {alleVakken.length > 0 && filterVakIds && (
+                  <>
+                    <div className="flex items-center justify-between mb-2 mt-1">
+                      <p className="text-xs font-semibold text-slate-600">SE-vakken</p>
+                      <div className="flex gap-2">
+                        <button onClick={() => setFilterVakIds(alleVakken.map(v => v.id))}
+                          className="text-xs text-blue-600 hover:underline">Alle</button>
+                        <button onClick={() => setFilterVakIds([])}
+                          className="text-xs text-slate-400 hover:underline">Geen</button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-x-4 gap-y-1 mb-4 max-h-40 overflow-y-auto">
+                      {alleVakken.map(vak => (
+                        <label key={vak.id} className="flex items-center gap-1.5 cursor-pointer">
+                          <input type="checkbox"
+                            checked={filterVakIds.includes(vak.id)}
+                            onChange={() => setFilterVakIds(prev =>
+                              prev.includes(vak.id) ? prev.filter(x => x !== vak.id) : [...prev, vak.id]
+                            )}
+                            className="w-3.5 h-3.5 accent-blue-600 shrink-0" />
+                          <span className="text-xs text-slate-700 truncate" title={vak.naam}>
+                            <span className="font-mono font-medium">{vak.code}</span>
+                            {vak.naam && <span className="text-slate-400 ml-1">{vak.naam}</span>}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </>
+                )}
                 <div className="flex gap-2">
                   <button onClick={genereerInschrijvingen}
-                    disabled={Object.values(selectie).every(lj => lj.length === 0)}
+                    disabled={Object.values(selectie).every(lj => lj.length === 0) || filterVakIds?.length === 0}
                     className="text-sm bg-blue-600 text-white px-4 py-1.5 rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors">
                     Genereer
                   </button>

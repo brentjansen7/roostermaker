@@ -144,7 +144,7 @@ router.post('/:id/algoritme/run', async (req, res) => {
 router.post('/:id/inschrijvingen/genereer', async (req, res) => {
   try {
     const roosterId = parseInt(req.params.id);
-    const { selectie } = req.body; // [{ niveau: 'mavo', leerjaren: [1,2,3] }, ...]
+    const { selectie, vakIds } = req.body;
 
     const where = {};
     if (selectie?.length) {
@@ -161,7 +161,7 @@ router.post('/:id/inschrijvingen/genereer', async (req, res) => {
 
     const data = leerlingen.flatMap(leerling =>
       leerling.vakken
-        .filter(lv => lv.vak?.isSeVak)
+        .filter(lv => lv.vak?.isSeVak && (!vakIds?.length || vakIds.includes(lv.vakId)))
         .map(lv => ({ roosterId, leerlingId: leerling.id, vakId: lv.vakId }))
     );
 
