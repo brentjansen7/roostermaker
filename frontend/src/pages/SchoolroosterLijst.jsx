@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { schoolroostersApi } from '../api/client.js';
 import { toonToast } from '../components/Toast.jsx';
 
@@ -7,6 +7,19 @@ export default function SchoolroosterLijst() {
   const [roosters, setRoosters] = useState([]);
   const [nieuwNaam, setNieuwNaam] = useState('');
   const [toonFormulier, setToonFormulier] = useState(false);
+
+  async function verwijderen(e, id) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!confirm('Schoolrooster verwijderen? Dit verwijdert ook alle ingeplande lessen en conflicten.')) return;
+    try {
+      await schoolroostersApi.verwijderen(id);
+      setRoosters(prev => prev.filter(r => r.id !== id));
+      toonToast('Schoolrooster verwijderd', 'succes');
+    } catch (err) {
+      toonToast(err.message, 'fout');
+    }
+  }
 
   useEffect(() => {
     schoolroostersApi.lijst().then(setRoosters).catch(() => {});
@@ -63,6 +76,12 @@ export default function SchoolroosterLijst() {
               <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                 r.status === 'gepubliceerd' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'
               }`}>{r.status}</span>
+              <button
+                onClick={(e) => verwijderen(e, r.id)}
+                className="text-red-400 hover:text-red-600 text-xs px-2 py-1 rounded hover:bg-red-50 transition-colors"
+              >
+                Verwijder
+              </button>
               <span className="text-blue-600">→</span>
             </div>
           </Link>

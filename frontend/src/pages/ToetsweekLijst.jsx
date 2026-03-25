@@ -5,7 +5,7 @@ import { toonToast } from '../components/Toast.jsx';
 
 export default function ToetsweekLijst() {
   const [toetsweken, setToetsweken] = useState([]);
-  const [nieuwNaam, setNieuwNaam] = useState('');
+  const [nieuwForm, setNieuwForm] = useState({ naam: '', datumVan: '', datumTot: '' });
   const [toonFormulier, setToonFormulier] = useState(false);
   const navigate = useNavigate();
 
@@ -28,11 +28,15 @@ export default function ToetsweekLijst() {
 
   async function aanmaken(e) {
     e.preventDefault();
-    if (!nieuwNaam.trim()) return;
+    if (!nieuwForm.naam.trim()) return;
     try {
-      const tw = await toetsweekenApi.aanmaken({ naam: nieuwNaam.trim() });
+      const tw = await toetsweekenApi.aanmaken({
+        naam: nieuwForm.naam.trim(),
+        datumVan: nieuwForm.datumVan || undefined,
+        datumTot: nieuwForm.datumTot || undefined,
+      });
       setToetsweken(prev => [tw, ...prev]);
-      setNieuwNaam('');
+      setNieuwForm({ naam: '', datumVan: '', datumTot: '' });
       setToonFormulier(false);
       toonToast('Toetsweek aangemaakt', 'succes');
     } catch (err) {
@@ -54,11 +58,24 @@ export default function ToetsweekLijst() {
       </div>
 
       {toonFormulier && (
-        <form onSubmit={aanmaken} className="bg-white border border-slate-200 rounded-xl p-4 mb-6 flex gap-3">
-          <input value={nieuwNaam} onChange={e => setNieuwNaam(e.target.value)}
-            placeholder="bijv. Toetsweek Periode 3 2026"
-            className="flex-1 border border-slate-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            autoFocus />
+        <form onSubmit={aanmaken} className="bg-white border border-slate-200 rounded-xl p-4 mb-6 flex gap-3 flex-wrap items-end">
+          <div className="flex-1 min-w-48">
+            <label className="block text-xs text-slate-500 mb-1">Naam *</label>
+            <input value={nieuwForm.naam} onChange={e => setNieuwForm(p => ({...p, naam: e.target.value}))}
+              placeholder="bijv. Toetsweek Periode 3 2026"
+              className="w-full border border-slate-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              autoFocus required />
+          </div>
+          <div>
+            <label className="block text-xs text-slate-500 mb-1">Van</label>
+            <input type="date" value={nieuwForm.datumVan} onChange={e => setNieuwForm(p => ({...p, datumVan: e.target.value}))}
+              className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-xs text-slate-500 mb-1">Tot</label>
+            <input type="date" value={nieuwForm.datumTot} onChange={e => setNieuwForm(p => ({...p, datumTot: e.target.value}))}
+              className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
           <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm">Aanmaken</button>
         </form>
       )}

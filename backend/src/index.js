@@ -142,6 +142,29 @@ app.get('/api/setup-status', async (req, res) => {
   }
 });
 
+// Wachtwoord wijzigen (vereist ingelogd)
+app.put('/api/wachtwoord', vereistLogin, async (req, res) => {
+  try {
+    const { huidig, nieuw } = req.body;
+    if (!huidig || !nieuw || nieuw.length < 6) {
+      return res.status(400).json({ fout: 'Nieuw wachtwoord moet minstens 6 tekens zijn' });
+    }
+    const instelling = await prisma.instelling.findUnique({ where: { sleutel: 'beheer_wachtwoord' } });
+    const juistWachtwoord = instelling?.waarde || '';
+    if (!wachtwoordKlopt(huidig, juistWachtwoord)) {
+      return res.status(401).json({ fout: 'Huidig wachtwoord klopt niet' });
+    }
+    await prisma.instelling.upsert({
+      where: { sleutel: 'beheer_wachtwoord' },
+      update: { waarde: nieuw },
+      create: { sleutel: 'beheer_wachtwoord', waarde: nieuw },
+    });
+    res.json({ succes: true });
+  } catch (err) {
+    res.status(500).json({ fout: err.message });
+  }
+});
+
 // Setup eerste keer
 app.post('/api/setup', async (req, res) => {
   try {

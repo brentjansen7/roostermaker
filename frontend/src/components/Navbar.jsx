@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { authApi } from '../api/client.js';
 import { toonToast } from './Toast.jsx';
@@ -16,6 +17,24 @@ const LINKS = [
 
 export default function Navbar() {
   const navigate = useNavigate();
+  const [toonWachtwoordForm, setToonWachtwoordForm] = useState(false);
+  const [wwForm, setWwForm] = useState({ huidig: '', nieuw: '', bevestig: '' });
+
+  async function wijzigWachtwoord(e) {
+    e.preventDefault();
+    if (wwForm.nieuw !== wwForm.bevestig) {
+      toonToast('Wachtwoorden komen niet overeen', 'fout');
+      return;
+    }
+    try {
+      await authApi.wachtwoordWijzigen({ huidig: wwForm.huidig, nieuw: wwForm.nieuw });
+      toonToast('Wachtwoord gewijzigd', 'succes');
+      setToonWachtwoordForm(false);
+      setWwForm({ huidig: '', nieuw: '', bevestig: '' });
+    } catch (err) {
+      toonToast(err.message, 'fout');
+    }
+  }
 
   async function uitloggen() {
     await authApi.logout();
@@ -45,6 +64,39 @@ export default function Navbar() {
           </NavLink>
         ))}
       </div>
+
+      <button
+        onClick={() => setToonWachtwoordForm(!toonWachtwoordForm)}
+        className="mt-1 px-3 py-2 text-sm text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg text-left transition-colors"
+      >
+        Wachtwoord
+      </button>
+
+      {toonWachtwoordForm && (
+        <form onSubmit={wijzigWachtwoord} className="bg-slate-800 rounded-lg p-3 mt-1 flex flex-col gap-2">
+          <input
+            type="password" placeholder="Huidig" value={wwForm.huidig}
+            onChange={e => setWwForm(p => ({...p, huidig: e.target.value}))}
+            className="bg-slate-700 text-white text-xs rounded px-2 py-1.5 placeholder-slate-400 focus:outline-none"
+            required
+          />
+          <input
+            type="password" placeholder="Nieuw (min. 6)" value={wwForm.nieuw}
+            onChange={e => setWwForm(p => ({...p, nieuw: e.target.value}))}
+            className="bg-slate-700 text-white text-xs rounded px-2 py-1.5 placeholder-slate-400 focus:outline-none"
+            required minLength={6}
+          />
+          <input
+            type="password" placeholder="Bevestig nieuw" value={wwForm.bevestig}
+            onChange={e => setWwForm(p => ({...p, bevestig: e.target.value}))}
+            className="bg-slate-700 text-white text-xs rounded px-2 py-1.5 placeholder-slate-400 focus:outline-none"
+            required
+          />
+          <button type="submit" className="bg-blue-600 text-white text-xs rounded px-2 py-1.5 hover:bg-blue-700">
+            Opslaan
+          </button>
+        </form>
+      )}
 
       <button
         onClick={uitloggen}

@@ -24,6 +24,27 @@ export default function LokalenLijst() {
     }
   }
 
+  async function toggleBeschikbaar(lokaal) {
+    try {
+      const bijgewerkt = await lokalenApi.bewerken(lokaal.id, { ...lokaal, beschikbaar: !lokaal.beschikbaar });
+      setLokalen(prev => prev.map(l => l.id === lokaal.id ? { ...l, beschikbaar: bijgewerkt.beschikbaar } : l));
+      toonToast(bijgewerkt.beschikbaar ? 'Lokaal beschikbaar' : 'Lokaal geblokkeerd', 'succes');
+    } catch (err) {
+      toonToast(err.message, 'fout');
+    }
+  }
+
+  async function verwijderLokaal(id) {
+    if (!confirm('Lokaal verwijderen?')) return;
+    try {
+      await lokalenApi.verwijderen(id);
+      setLokalen(prev => prev.filter(l => l.id !== id));
+      toonToast('Lokaal verwijderd', 'succes');
+    } catch (err) {
+      toonToast(err.message, 'fout');
+    }
+  }
+
   const typeKleuren = {
     normaal: 'bg-slate-100 text-slate-700',
     gym: 'bg-green-100 text-green-700',
@@ -82,13 +103,31 @@ export default function LokalenLijst() {
 
       <div className="grid grid-cols-3 gap-3">
         {lokalen.map(l => (
-          <div key={l.id} className="bg-white border border-slate-200 rounded-xl p-4">
+          <div key={l.id} className={`bg-white border rounded-xl p-4 ${l.beschikbaar === false ? 'opacity-60 border-slate-300' : 'border-slate-200'}`}>
             <div className="flex items-start justify-between mb-2">
               <p className="font-bold text-slate-900">{l.code}</p>
               <span className={`text-xs px-2 py-0.5 rounded ${typeKleuren[l.type] || typeKleuren.normaal}`}>{l.type}</span>
             </div>
             {l.naam && <p className="text-sm text-slate-500">{l.naam}</p>}
             <p className="text-sm text-slate-600 mt-1">Capaciteit: <span className="font-medium">{l.capaciteit}</span></p>
+            <div className="flex items-center gap-2 mt-3 pt-2 border-t border-slate-100">
+              <button
+                onClick={() => toggleBeschikbaar(l)}
+                className={`text-xs px-2 py-1 rounded flex-1 transition-colors ${
+                  l.beschikbaar === false
+                    ? 'bg-slate-100 text-slate-600 hover:bg-green-50 hover:text-green-700'
+                    : 'bg-green-50 text-green-700 hover:bg-slate-100 hover:text-slate-600'
+                }`}
+              >
+                {l.beschikbaar === false ? '✗ Geblokkeerd' : '✓ Beschikbaar'}
+              </button>
+              <button
+                onClick={() => verwijderLokaal(l.id)}
+                className="text-xs text-red-400 hover:text-red-600 px-2 py-1 rounded hover:bg-red-50 transition-colors"
+              >
+                Verwijder
+              </button>
+            </div>
           </div>
         ))}
       </div>

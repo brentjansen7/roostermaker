@@ -34,6 +34,7 @@ export const authApi = {
   status: () => verzoek('/auth-status'),
   setupStatus: () => verzoek('/setup-status'),
   setup: (data) => verzoek('/setup', { method: 'POST', body: JSON.stringify(data) }),
+  wachtwoordWijzigen: (data) => api.put('/wachtwoord', data),
 };
 
 export const leerlingenApi = {

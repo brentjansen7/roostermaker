@@ -70,6 +70,13 @@ export async function runSEAlgoritme(roosterId) {
     vakGroepen.get(inschrijving.vakId).push(inschrijving);
   }
 
+  // Pre-fetch vakken voor foutmeldingen
+  const alleVakken = await prisma.vak.findMany({
+    where: { id: { in: [...vakGroepen.keys()] } },
+    select: { id: true, naam: true, code: true },
+  });
+  const vakMap = new Map(alleVakken.map(v => [v.id, v]));
+
   // Sorteer vakken op aantal inschrijvingen (meest eerst = MRV)
   const gesorteerdeVakken = [...vakGroepen.entries()].sort((a, b) => b[1].length - a[1].length);
 
@@ -77,7 +84,7 @@ export async function runSEAlgoritme(roosterId) {
   const conflicten = [];
 
   for (const [vakId, inschrijvingen] of gesorteerdeVakken) {
-    const vak = inschrijvingen[0].vak;
+    const vak = vakMap.get(vakId);
     const docentVak = docentPerVak.get(vakId) || null; // uit pre-fetched map
 
     // Splits inschrijvingen in groepen op basis van lokaal capaciteit
@@ -119,11 +126,11 @@ export async function runSEAlgoritme(roosterId) {
         });
 
         // Koppel inschrijvingen aan les
+        await prisma.sEInschrijving.updateMany({
+          where: { id: { in: groep.map(i => i.id) } },
+          data: { lesId: les.id, status: 'ingepland' },
+        });
         for (const inschrijving of groep) {
-          await prisma.sEInschrijving.update({
-            where: { id: inschrijving.id },
-            data: { lesId: les.id, status: 'ingepland' },
-          });
           markeerBezet(leerlingBusy, inschrijving.leerlingId, key);
         }
 
