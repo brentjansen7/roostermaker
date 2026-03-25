@@ -178,9 +178,37 @@ export async function runToetsweekAlgoritme(toetsweekId) {
     }
   }
 
+  // Post-run conflict scan: controleer alle ingeplande lessen
+  const ingeplandeLessen = await prisma.toetsLes.findMany({
+    where: { toetsweekId, dag: { not: null } },
+    include: { deelnames: { select: { leerlingId: true } } },
+  });
+
+  const slotMap = new Map();
+  for (const les of ingeplandeLessen) {
+    const key = `${les.dag}_${les.uur}`;
+    if (!slotMap.has(key)) slotMap.set(key, []);
+    slotMap.get(key).push(les);
+  }
+
+  let leerlingDubbel = 0, docentDubbel = 0, lokaalDubbel = 0;
+  for (const lessen of slotMap.values()) {
+    if (lessen.length < 2) continue;
+    const docIds = lessen.filter(l => l.docentId).map(l => l.docentId);
+    docentDubbel += docIds.filter((id, i) => docIds.indexOf(id) !== i).length;
+    const lokIds = lessen.filter(l => l.lokaalId).map(l => l.lokaalId);
+    lokaalDubbel += lokIds.filter((id, i) => lokIds.indexOf(id) !== i).length;
+    const lIds = lessen.flatMap(l => l.deelnames.map(d => d.leerlingId));
+    leerlingDubbel += new Set(lIds.filter((id, i) => lIds.indexOf(id) !== i)).size;
+  }
+
   return {
     aantalVakken: aantalIngepland.vakken,
-    aantalConflicten: aantalIngepland.conflicten,
+    aantalConflicten: aantalIngepland.conflicten + leerlingDubbel + docentDubbel + lokaalDubbel,
+    leerlingDubbel,
+    docentDubbel,
+    lokaalDubbel,
+    nietIngepland: aantalIngepland.conflicten,
     conflicten: conflictenLijst,
   };
 }

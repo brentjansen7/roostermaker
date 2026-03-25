@@ -48,14 +48,36 @@ export default function AlgoritmePanel({ onRun, type = 'standaard' }) {
 
       {status === 'klaar' && resultaat && (
         <div className={`mt-4 p-3 rounded-lg text-sm ${resultaat.aantalConflicten > 0 ? 'bg-orange-50 border border-orange-200' : 'bg-green-50 border border-green-200'}`}>
-          <p className="font-medium text-slate-800">
-            {resultaat.aantalIngepland ?? resultaat.aantalVakken ?? resultaat.aantalSlots ?? 0} ingepland
-            {resultaat.aantalConflicten > 0 && ` — ${resultaat.aantalConflicten} conflict(en)`}
+          <p className="font-semibold text-slate-800 mb-2">
+            {resultaat.aantalConflicten === 0 ? '✓ Geen conflicten' : `⚠ ${resultaat.aantalConflicten} conflict(en) gevonden`}
           </p>
+          <div className="flex flex-col gap-1">
+            {(resultaat.aantalIngepland ?? resultaat.aantalVakken ?? resultaat.aantalSlots) != null && (
+              <p className="text-xs text-green-700">
+                ✓ {resultaat.aantalIngepland ?? resultaat.aantalVakken ?? resultaat.aantalSlots} ingepland
+                {resultaat.aantalLessen ? ` (${resultaat.aantalLessen} lessen)` : ''}
+              </p>
+            )}
+            {resultaat.leerlingDubbel > 0 && (
+              <p className="text-xs text-red-600">✗ {resultaat.leerlingDubbel} leerling(en) op 2 plekken tegelijk</p>
+            )}
+            {resultaat.docentDubbel > 0 && (
+              <p className="text-xs text-red-600">✗ {resultaat.docentDubbel} docent(en) dubbel bezet</p>
+            )}
+            {resultaat.lokaalDubbel > 0 && (
+              <p className="text-xs text-red-600">✗ {resultaat.lokaalDubbel} lokaal/lokalen dubbel geboekt</p>
+            )}
+            {resultaat.nietIngepland > 0 && (
+              <p className="text-xs text-orange-600">⚠ {resultaat.nietIngepland} niet ingepland (geen vrij slot)</p>
+            )}
+          </div>
           {resultaat.conflicten?.length > 0 && (
-            <ul className="mt-2 list-disc list-inside text-xs text-orange-700 flex flex-col gap-0.5">
-              {resultaat.conflicten.map((c, i) => <li key={i}>{c.beschrijving}</li>)}
-            </ul>
+            <details className="mt-2">
+              <summary className="text-xs text-orange-600 cursor-pointer">Toon details</summary>
+              <ul className="mt-1 list-disc list-inside text-xs text-orange-700 flex flex-col gap-0.5">
+                {resultaat.conflicten.map((c, i) => <li key={i}>{c.beschrijving}</li>)}
+              </ul>
+            </details>
           )}
         </div>
       )}
