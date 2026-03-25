@@ -144,11 +144,15 @@ router.post('/:id/algoritme/run', async (req, res) => {
 router.post('/:id/inschrijvingen/genereer', async (req, res) => {
   try {
     const roosterId = parseInt(req.params.id);
-    const { niveaus, leerjaren } = req.body;
+    const { selectie } = req.body; // [{ niveau: 'mavo', leerjaren: [1,2,3] }, ...]
 
     const where = {};
-    if (niveaus?.length) where.niveau = { in: niveaus };
-    if (leerjaren?.length) where.leerjaar = { in: leerjaren };
+    if (selectie?.length) {
+      where.OR = selectie.map(({ niveau, leerjaren }) => ({
+        niveau,
+        ...(leerjaren?.length ? { leerjaar: { in: leerjaren } } : {}),
+      }));
+    }
 
     const leerlingen = await prisma.leerling.findMany({
       where,

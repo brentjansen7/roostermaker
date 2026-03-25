@@ -7,8 +7,7 @@ import AlgoritmePanel from '../components/AlgoritmePanel.jsx';
 
 const TABBLADEN = ['Deelnames', 'Rooster', 'Exporteren'];
 const DAGEN_NAMEN = { 1: 'Maandag', 2: 'Dinsdag', 3: 'Woensdag', 4: 'Donderdag', 5: 'Vrijdag' };
-const ALLE_NIVEAUS = ['mavo', 'havo', 'vwo'];
-const ALLE_LEERJAREN = [1, 2, 3, 4, 5, 6];
+const NIVEAU_LEERJAREN = { mavo: [1,2,3,4], havo: [1,2,3,4,5], vwo: [1,2,3,4,5,6] };
 
 export default function ToetsweekDetail() {
   const { id } = useParams();
@@ -16,8 +15,9 @@ export default function ToetsweekDetail() {
   const [toetsweek, setToetsweek] = useState(null);
   const [actieveTab, setActieveTab] = useState('Rooster');
   const [toonGenereerForm, setToonGenereerForm] = useState(false);
-  const [filterNiveaus, setFilterNiveaus] = useState([...ALLE_NIVEAUS]);
-  const [filterLeerjaren, setFilterLeerjaren] = useState([...ALLE_LEERJAREN]);
+  const [selectie, setSelectie] = useState(
+    Object.fromEntries(Object.entries(NIVEAU_LEERJAREN).map(([n, lj]) => [n, [...lj]]))
+  );
 
   useEffect(() => { laad(); }, [id]);
 
@@ -38,10 +38,10 @@ export default function ToetsweekDetail() {
 
   async function genereerDeelnames() {
     try {
-      const body = {};
-      if (filterNiveaus.length < ALLE_NIVEAUS.length) body.niveaus = filterNiveaus;
-      if (filterLeerjaren.length < ALLE_LEERJAREN.length) body.leerjaren = filterLeerjaren;
-      const res = await toetsweekenApi.deelamesGenereer(id, body);
+      const sel = Object.entries(selectie)
+        .filter(([, lj]) => lj.length > 0)
+        .map(([niveau, leerjaren]) => ({ niveau, leerjaren }));
+      const res = await toetsweekenApi.deelamesGenereer(id, { selectie: sel });
       if (res.aangemaakt === 0) {
         toonToast('Alle leerlingen uit deze selectie staan al ingeschreven', 'info');
       } else {
@@ -54,11 +54,17 @@ export default function ToetsweekDetail() {
     }
   }
 
-  function toggleNiveau(n) {
-    setFilterNiveaus(prev => prev.includes(n) ? prev.filter(x => x !== n) : [...prev, n]);
+  function toggleLeerjaar(niveau, lj) {
+    setSelectie(prev => {
+      const huidig = prev[niveau] || [];
+      return { ...prev, [niveau]: huidig.includes(lj) ? huidig.filter(x => x !== lj) : [...huidig, lj].sort((a,b)=>a-b) };
+    });
   }
-  function toggleLeerjaar(l) {
-    setFilterLeerjaren(prev => prev.includes(l) ? prev.filter(x => x !== l) : [...prev, l]);
+  function toggleNiveau(niveau) {
+    setSelectie(prev => ({
+      ...prev,
+      [niveau]: prev[niveau].length > 0 ? [] : [...NIVEAU_LEERJAREN[niveau]],
+    }));
   }
 
   async function slotVerplaats(lesId, dag, uur) {
@@ -147,28 +153,35 @@ export default function ToetsweekDetail() {
 
             {toonGenereerForm && (
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-4">
-                <p className="text-xs font-semibold text-slate-600 mb-2">Niveau</p>
-                <div className="flex gap-3 mb-3">
-                  {ALLE_NIVEAUS.map(n => (
-                    <label key={n} className="flex items-center gap-1.5 cursor-pointer text-sm">
-                      <input type="checkbox" checked={filterNiveaus.includes(n)} onChange={() => toggleNiveau(n)}
-                        className="w-4 h-4 accent-blue-600" />
-                      <span className="uppercase font-medium">{n}</span>
-                    </label>
-                  ))}
-                </div>
-                <p className="text-xs font-semibold text-slate-600 mb-2">Leerjaar</p>
-                <div className="flex gap-2 mb-4">
-                  {ALLE_LEERJAREN.map(l => (
-                    <label key={l} className="flex items-center gap-1 cursor-pointer text-sm">
-                      <input type="checkbox" checked={filterLeerjaren.includes(l)} onChange={() => toggleLeerjaar(l)}
-                        className="w-4 h-4 accent-blue-600" />
-                      <span>{l}</span>
-                    </label>
+                <p className="text-xs font-semibold text-slate-600 mb-3">Selecteer welke leerlingen je wil inschrijven</p>
+                <div className="flex flex-col gap-2 mb-4">
+                  {Object.entries(NIVEAU_LEERJAREN).map(([niveau, leerjaren]) => (
+                    <div key={niveau} className="flex items-center gap-3">
+                      <label className="flex items-center gap-1.5 cursor-pointer w-14">
+                        <input type="checkbox"
+                          checked={selectie[niveau].length > 0}
+                          ref={el => { if (el) el.indeterminate = selectie[niveau].length > 0 && selectie[niveau].length < leerjaren.length; }}
+                          onChange={() => toggleNiveau(niveau)}
+                          className="w-4 h-4 accent-blue-600" />
+                        <span className="text-sm font-semibold uppercase">{niveau}</span>
+                      </label>
+                      <div className="flex gap-1.5">
+                        {leerjaren.map(lj => (
+                          <label key={lj} className="flex items-center gap-1 cursor-pointer">
+                            <input type="checkbox"
+                              checked={selectie[niveau].includes(lj)}
+                              onChange={() => toggleLeerjaar(niveau, lj)}
+                              className="w-3.5 h-3.5 accent-blue-600" />
+                            <span className="text-sm text-slate-600">{lj}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={genereerDeelnames} disabled={!filterNiveaus.length || !filterLeerjaren.length}
+                  <button onClick={genereerDeelnames}
+                    disabled={Object.values(selectie).every(lj => lj.length === 0)}
                     className="text-sm bg-blue-600 text-white px-4 py-1.5 rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors">
                     Genereer
                   </button>
