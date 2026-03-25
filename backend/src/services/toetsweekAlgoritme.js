@@ -12,14 +12,7 @@ export async function runToetsweekAlgoritme(toetsweekId) {
 
   const lokalen = await prisma.lokaal.findMany({ where: { beschikbaar: true }, orderBy: { capaciteit: 'desc' } });
   const tijdslots = genereerTijdslots();
-
-  // Pre-fetch alle docent-vak koppelingen (voorkomt N+1 queries)
-  const vakIds = [...new Set(toetsweek.deelnames.map(d => d.vakId))];
-  const alleDocentVakken = await prisma.docentVak.findMany({ where: { vakId: { in: vakIds } } });
-  const docentPerVak = new Map();
-  for (const dv of alleDocentVakken) {
-    if (!docentPerVak.has(dv.vakId)) docentPerVak.set(dv.vakId, dv);
-  }
+  // Geen docent-check bij toetsweken: surveillance wordt apart geregeld
 
   // Verwijder automatisch geplande lessen
   await prisma.toetsLes.deleteMany({ where: { toetsweekId, handmatigGezet: false } });
@@ -56,8 +49,7 @@ export async function runToetsweekAlgoritme(toetsweekId) {
   }
 
   // Bouw busy-maps
-  const slotBezet = new Map();    // "dag_uur" -> Set<vakId> (welke vakken zijn op dit slot)
-  const docentBusy = new Map();
+  const slotBezet = new Map();    // "dag_uur" -> Set<vakId>
   const lokaalBusy = new Map();
   const leerlingDagTelling = new Map(); // leerlingId -> Map<dag, aantal>
 
@@ -70,7 +62,6 @@ export async function runToetsweekAlgoritme(toetsweekId) {
     const key = `${les.dag}_${les.uur}`;
     if (!slotBezet.has(key)) slotBezet.set(key, new Set());
     slotBezet.get(key).add(les.vakId);
-    if (les.docentId) markeerBezet(docentBusy, les.docentId, key);
     if (les.lokaalId) markeerBezet(lokaalBusy, les.lokaalId, key);
     for (const d of les.deelnames) {
       telDagOp(leerlingDagTelling, d.leerlingId, les.dag);
@@ -86,21 +77,16 @@ export async function runToetsweekAlgoritme(toetsweekId) {
   for (const [vakId, leerlingIds] of gesorteerdeVakken) {
     const leerlingenArray = [...leerlingIds];
 
-    const docentVak = docentPerVak.get(vakId) || null; // uit pre-fetched map
-
     // Zoek passend lokaal (grootste beschikbare)
     let ingepland = false;
 
     for (const { dag, uur } of tijdslots) {
       const key = `${dag}_${uur}`;
 
-      // Check: geen conflicterend vak op dit slot
+      // Check: geen conflicterend vak op dit slot (leerling zit in beide vakken)
       const slotVakken = slotBezet.get(key) || new Set();
       const conflicterendVak = [...slotVakken].some(anderVakId => vakConflicten.get(vakId)?.has(anderVakId));
       if (conflicterendVak) continue;
-
-      // Check: docent beschikbaar
-      if (docentVak && docentBusy.get(docentVak.docentId)?.has(key)) continue;
 
       // Check spread-constraint: max 2 toetsen per dag per leerling (soft: versoepel naar 3)
       const maxToetsenPerDag = 2;
@@ -139,14 +125,7 @@ export async function runToetsweekAlgoritme(toetsweekId) {
         if (groepDeelnames.length === 0) break;
 
         const les = await prisma.toetsLes.create({
-          data: {
-            toetsweekId,
-            vakId,
-            docentId: docentVak?.docentId || null,
-            lokaalId: lokaal.id,
-            dag,
-            uur,
-          },
+          data: { toetsweekId, vakId, docentId: null, lokaalId: lokaal.id, dag, uur },
         });
 
         await prisma.toetsDeelname.updateMany({
@@ -161,7 +140,6 @@ export async function runToetsweekAlgoritme(toetsweekId) {
 
       if (!slotBezet.has(key)) slotBezet.set(key, new Set());
       slotBezet.get(key).add(vakId);
-      if (docentVak) markeerBezet(docentBusy, docentVak.docentId, key);
 
       aantalIngepland.vakken++;
       ingepland = true;
@@ -191,11 +169,9 @@ export async function runToetsweekAlgoritme(toetsweekId) {
     slotMap.get(key).push(les);
   }
 
-  let leerlingDubbel = 0, docentDubbel = 0, lokaalDubbel = 0;
+  let leerlingDubbel = 0, lokaalDubbel = 0;
   for (const lessen of slotMap.values()) {
     if (lessen.length < 2) continue;
-    const docIds = lessen.filter(l => l.docentId).map(l => l.docentId);
-    docentDubbel += docIds.filter((id, i) => docIds.indexOf(id) !== i).length;
     const lokIds = lessen.filter(l => l.lokaalId).map(l => l.lokaalId);
     lokaalDubbel += lokIds.filter((id, i) => lokIds.indexOf(id) !== i).length;
     const lIds = lessen.flatMap(l => l.deelnames.map(d => d.leerlingId));
@@ -204,9 +180,8 @@ export async function runToetsweekAlgoritme(toetsweekId) {
 
   return {
     aantalVakken: aantalIngepland.vakken,
-    aantalConflicten: aantalIngepland.conflicten + leerlingDubbel + docentDubbel + lokaalDubbel,
+    aantalConflicten: aantalIngepland.conflicten + leerlingDubbel + lokaalDubbel,
     leerlingDubbel,
-    docentDubbel,
     lokaalDubbel,
     nietIngepland: aantalIngepland.conflicten,
     conflicten: conflictenLijst,
